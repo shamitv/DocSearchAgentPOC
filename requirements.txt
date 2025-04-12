@@ -1,3 +1,7 @@
 streamlit
 elasticsearch
 python-dotenv
+openai
+autogenstudio
+autogen-ext[openai]
+autogen-agentchat
