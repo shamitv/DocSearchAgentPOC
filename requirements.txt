@@ -1,5 +1,3 @@
-# Added python-dotenv to manage environment variables
+streamlit
 elasticsearch
-mwxml
-mwparserfromhell
 python-dotenv
