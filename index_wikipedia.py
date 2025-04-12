@@ -7,10 +7,15 @@ from datetime import datetime, timezone
 import time
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configuration
-ES_URL = "http://i3tiny1.local:7020/"
-DUMP_FILE_PATH = "./data/wikidump/2/enwiki-20250401-pages-articles-multistream.xml.bz2"
+ES_URL = os.getenv("ES_URL")
+DUMP_FILE_PATH = os.getenv("DUMP_FILE_PATH")
 
 # Initialize Elasticsearch client
 es = Elasticsearch([ES_URL])

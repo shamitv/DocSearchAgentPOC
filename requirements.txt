@@ -1,3 +1,5 @@
+# Added python-dotenv to manage environment variables
 elasticsearch
 mwxml
 mwparserfromhell
+python-dotenv
