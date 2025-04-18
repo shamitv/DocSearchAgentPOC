@@ -6,17 +6,41 @@ from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 import asyncio
 import json
+import time
+import logging
 from typing import List, Dict, Any, Optional
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("knowledge_agent.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("advanced_knowledge_agent")
+logger.info("Initializing Advanced Knowledge Agent")
 
 # Load environment variables from .env file
 load_dotenv()
+logger.info("Environment variables loaded")
 
 # Initialize Elasticsearch client
 es_host = os.getenv("ES_HOST", "localhost")
 es_port = os.getenv("ES_PORT", "9200")
 es_index = os.getenv("ES_INDEX", "wikipedia")
 
-es_client = Elasticsearch([f"http://{es_host}:{es_port}"])
+logger.info(f"Connecting to Elasticsearch at {es_host}:{es_port}, index: {es_index}")
+try:
+    es_client = Elasticsearch([f"http://{es_host}:{es_port}"])
+    if es_client.ping():
+        logger.info("Successfully connected to Elasticsearch")
+    else:
+        logger.error("Could not connect to Elasticsearch")
+except Exception as e:
+    logger.error(f"Error connecting to Elasticsearch: {str(e)}")
+    raise
 
 # Define search function that returns structured data for better analysis
 async def search_knowledge_base(query: str, max_results: int = 5) -> str:
@@ -30,6 +54,9 @@ async def search_knowledge_base(query: str, max_results: int = 5) -> str:
     Returns:
         JSON string containing search results
     """
+    logger.info(f"Searching knowledge base for: '{query}' (max results: {max_results})")
+    start_time = time.time()
+    
     try:
         response = es_client.search(
             index=es_index,
@@ -49,8 +76,11 @@ async def search_knowledge_base(query: str, max_results: int = 5) -> str:
         hits = response.get("hits", {}).get("hits", [])
         
         if not hits:
+            logger.warning(f"No results found for query: '{query}'")
             return json.dumps({"success": False, "query": query, "message": f"No results found for query: '{query}'"})
             
+        logger.info(f"Found {len(hits)} results for query: '{query}'")
+        
         for i, hit in enumerate(hits):
             source = hit["_source"]
             title = source.get("title", "No title")
@@ -64,6 +94,9 @@ async def search_knowledge_base(query: str, max_results: int = 5) -> str:
                 "content": text[:1000] + ("..." if len(text) > 1000 else "")
             })
             
+        elapsed_time = time.time() - start_time
+        logger.info(f"Search completed in {elapsed_time:.2f} seconds")
+        
         return json.dumps({
             "success": True,
             "query": query,
@@ -71,6 +104,7 @@ async def search_knowledge_base(query: str, max_results: int = 5) -> str:
             "results": results
         })
     except Exception as e:
+        logger.error(f"Error searching knowledge base: {str(e)}")
         return json.dumps({"success": False, "query": query, "message": f"Error searching knowledge base: {str(e)}"})
 
 # Function to generate multiple search queries
@@ -88,6 +122,10 @@ async def generate_search_queries(question: str, previous_queries: List[str] = N
     Returns:
         JSON string containing new search queries
     """
+    logger.info(f"Generating search queries for question: '{question}'")
+    logger.info(f"Previous queries: {previous_queries}")
+    start_time = time.time()
+    
     prompt = f"""
     Based on the original question: "{question}"
     
@@ -132,6 +170,10 @@ async def generate_search_queries(question: str, previous_queries: List[str] = N
             f"explanation {question} history context"
         ]
     
+    elapsed_time = time.time() - start_time
+    logger.info(f"Generated {len(example_queries)} queries in {elapsed_time:.2f} seconds")
+    logger.info(f"Generated queries: {example_queries}")
+    
     return json.dumps(example_queries)
 
 # Function to analyze search results and determine if the answer was found
@@ -147,6 +189,10 @@ async def analyze_search_results(question: str, search_results: List[Dict], max_
     Returns:
         JSON string with analysis results including if answer was found and the answer itself
     """
+    logger.info(f"Analyzing search results for question: '{question}'")
+    logger.info(f"Number of search results to analyze: {len(search_results)}")
+    start_time = time.time()
+    
     prompt = f"""
     Original question: "{question}"
     
@@ -175,15 +221,26 @@ async def analyze_search_results(question: str, search_results: List[Dict], max_
         "supporting_evidence": []
     }
     
+    elapsed_time = time.time() - start_time
+    logger.info(f"Analysis completed in {elapsed_time:.2f} seconds")
+    logger.info(f"Analysis result - answer found: {example_analysis['answer_found']}")
+    
     return json.dumps(example_analysis)
 
 # Define a model client
-model_client = OpenAIChatCompletionClient(
-    model="gpt-4o-mini",  # Using a more capable model for complex reasoning
-    api_key=os.getenv("OPENAI_API_KEY"),
-)
+logger.info("Initializing OpenAI client")
+try:
+    model_client = OpenAIChatCompletionClient(
+        model="gpt-4o-mini",  # Using a more capable model for complex reasoning
+        api_key=os.getenv("OPENAI_API_KEY"),
+    )
+    logger.info("OpenAI client initialized")
+except Exception as e:
+    logger.error(f"Error initializing OpenAI client: {str(e)}")
+    raise
 
 # Define the advanced knowledge agent
+logger.info("Creating advanced knowledge agent")
 advanced_knowledge_agent = AssistantAgent(
     name="advanced_knowledge_agent",
     model_client=model_client,
@@ -222,6 +279,7 @@ Remember that each tool call counts as one API call, so be strategic about your 
     reflect_on_tool_use=True,
     model_client_stream=True,  # Enable streaming tokens from the model client
 )
+logger.info("Advanced knowledge agent created successfully")
 
 # Now let's create a runner function that orchestrates the whole process
 async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> Dict[str, Any]:
@@ -235,6 +293,10 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
     Returns:
         Dictionary with the final answer and search history
     """
+    logger.info(f"Starting search process for question: '{question}'")
+    logger.info(f"Maximum iterations allowed: {max_iterations}")
+    start_time = time.time()
+    
     all_queries = []
     all_results = []
     iterations = 0
@@ -243,21 +305,26 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
     
     while iterations < max_iterations and not answer_found:
         iterations += 1
+        logger.info(f"Starting iteration {iterations}/{max_iterations}")
         
         # Generate search queries
         if iterations == 1:
             # Initial queries
+            logger.info("Generating initial queries")
             queries_json = await generate_search_queries(question)
         else:
             # Refined queries based on previous results
+            logger.info("Generating refined queries based on previous results")
             queries_json = await generate_search_queries(question, all_queries, all_results)
             
         queries = json.loads(queries_json)
         all_queries.extend(queries)
         
         # Execute searches
+        logger.info(f"Executing {len(queries)} searches")
         iteration_results = []
         for query in queries:
+            logger.info(f"Searching with query: '{query}'")
             results_json = await search_knowledge_base(query)
             results = json.loads(results_json)
             if results.get("success", False):
@@ -269,29 +336,51 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
         
         # Analyze results to see if we found an answer
         if iteration_results:
+            logger.info(f"Analyzing {len(iteration_results)} search results")
             analysis_json = await analyze_search_results(question, iteration_results)
             analysis = json.loads(analysis_json)
             
             if analysis.get("answer_found", False):
+                logger.info("Answer found!")
                 answer_found = True
                 final_answer = analysis
                 break
+            else:
+                logger.info("Answer not found in this iteration, continuing search")
+        else:
+            logger.warning("No results found in this iteration")
+    
+    elapsed_time = time.time() - start_time
+    logger.info(f"Search process completed in {elapsed_time:.2f} seconds after {iterations} iterations")
+    logger.info(f"Answer found: {answer_found}")
     
     return {
         "question": question,
         "answer_found": answer_found,
         "final_answer": final_answer,
         "iterations": iterations,
-        "search_history": all_results
+        "search_history": all_results,
+        "total_queries": len(all_queries),
+        "processing_time": elapsed_time
     }
 
 # Run the agent and stream the messages to the console
 async def main() -> None:
     # You can replace the task with any question you want to ask
     task = "Who was the first person to walk on the moon and when did it happen?"
-    await Console(advanced_knowledge_agent.run_stream(task=task))
-    # Close the connection to the model client
-    await model_client.close()
+    logger.info(f"Starting agent with task: {task}")
+    try:
+        await Console(advanced_knowledge_agent.run_stream(task=task))
+        logger.info("Agent task completed successfully")
+    except Exception as e:
+        logger.error(f"Error during agent execution: {str(e)}")
+    finally:
+        # Close the connection to the model client
+        logger.info("Closing model client connection")
+        await model_client.close()
+        logger.info("Model client connection closed")
 
 if __name__ == "__main__":
+    logger.info("Starting main function")
     asyncio.run(main())
+    logger.info("Main function completed")
