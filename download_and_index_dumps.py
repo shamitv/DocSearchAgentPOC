@@ -15,6 +15,10 @@ DUMP_DIR = "./data/wikidump/"
 DUMP_URL = "https://dumps.wikimedia.org/other/incr/enwiki/"
 CUTOFF_DATE = datetime(2025, 4, 1)
 
+# Directory to store dumps (set via environment variable)
+DUMP_SUBDIR = os.getenv("DUMP_SUBDIR", "./data/wikidump/2/")
+os.makedirs(DUMP_SUBDIR, exist_ok=True)
+
 # Ensure dump directory exists
 os.makedirs(DUMP_DIR, exist_ok=True)
 
@@ -29,24 +33,33 @@ if not es.indices.exists(index=ES_INDEX):
 resp = requests.get(DUMP_URL)
 soup = BeautifulSoup(resp.text, "html.parser")
 
-# Find all links to .bz2 files
+# Find all links to directories
 links = soup.find_all('a')
 dump_files = []
+
+# Visit each directory for a date and find files
 for link in links:
     href = link.get('href', '')
-    if href.endswith('.bz2'):
-        # Extract date from filename (format: enwiki-YYYYMMDD-...)
+    if href.endswith('/'):
         try:
-            date_str = href.split('-')[1]
+            date_str = href.strip('/')
             dump_date = datetime.strptime(date_str, "%Y%m%d")
             if dump_date > CUTOFF_DATE:
-                dump_files.append((href, dump_date))
+                # Visit the directory for this date
+                date_url = DUMP_URL + href
+                date_resp = requests.get(date_url)
+                date_soup = BeautifulSoup(date_resp.text, "html.parser")
+                date_links = date_soup.find_all('a')
+                for date_link in date_links:
+                    file_href = date_link.get('href', '')
+                    if file_href.endswith('.bz2'):
+                        dump_files.append((href + file_href, dump_date))
         except Exception:
             continue
 
 for filename, dump_date in dump_files:
     file_url = DUMP_URL + filename
-    local_path = os.path.join(DUMP_DIR, filename)
+    local_path = os.path.join(DUMP_SUBDIR, filename.replace('/', '_'))  # Replace slashes for local storage
     # Check if already processed in ES
     es_id = filename
     doc = es.get(index=ES_INDEX, id=es_id, ignore=[404])

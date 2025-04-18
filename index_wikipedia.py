@@ -70,6 +70,7 @@ def process_dump(file_path):
     bulk_documents = []
     bulk_size = 500  # Number of documents to index in a single bulk request
 
+    logging.info(f"Opening dump file: {file_path}")
     with bz2.open(file_path, "rb") as file:
         dump = mwxml.Dump.from_file(file)
         for page in dump:
@@ -92,6 +93,7 @@ def process_dump(file_path):
                     bulk_documents.append(document)
 
                     if len(bulk_documents) >= bulk_size:
+                        logging.info(f"Indexing bulk of {len(bulk_documents)} documents...")
                         index_documents_bulk_async(bulk_documents)
                         doc_count += len(bulk_documents)
                         bulk_documents = []
@@ -102,12 +104,13 @@ def process_dump(file_path):
 
         # Index any remaining documents
         if bulk_documents:
+            logging.info(f"Indexing final bulk of {len(bulk_documents)} documents...")
             index_documents_bulk_async(bulk_documents)
             doc_count += len(bulk_documents)
 
     logging.info(f"All tasks completed. Total documents processed: {doc_count}.")
 
 if __name__ == "__main__":
-    print("Starting Wikipedia dump processing...")
+    logging.info("Starting Wikipedia dump processing...")
     process_dump(DUMP_FILE_PATH)
-    print("Processing completed.")
+    logging.info("Processing completed.")
