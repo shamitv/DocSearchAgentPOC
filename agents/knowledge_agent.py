@@ -98,7 +98,7 @@ async def search_knowledge_base(query: str, max_results: int = 5) -> str:
 logger.info("Initializing OpenAI client")
 try:
     model_client = OpenAIChatCompletionClient(
-        model="gpt-4.1-mini", # Using a more capable model for complex reasoning
+        model="gpt-4o-mini", # Using a more capable model for complex reasoning
         api_key=os.getenv("OPENAI_API_KEY"),
     )
     logger.info("OpenAI client initialized")
