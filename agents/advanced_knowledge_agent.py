@@ -370,7 +370,24 @@ async def main() -> None:
     task = "Who was the first person to walk on the moon and when did it happen?"
     logger.info(f"Starting agent with task: {task}")
     try:
-        await Console(advanced_knowledge_agent.run_stream(task=task))
+        # First use the answer_from_knowledge_base function to get search results
+        logger.info("Starting knowledge base search process")
+        search_results = await answer_from_knowledge_base(task)
+        
+        # Then pass the results to the agent
+        logger.info("Passing search results to agent for final response")
+        
+        # Create a new prompt with the search results
+        enhanced_task = f"""
+Question: {task}
+
+Here are the search results from the knowledge base:
+{json.dumps(search_results, indent=2)}
+
+Please analyze these search results and provide a comprehensive answer to the question.
+"""
+        # Run the agent with the enhanced task containing search results
+        await Console(advanced_knowledge_agent.run_stream(task=enhanced_task))
         logger.info("Agent task completed successfully")
     except Exception as e:
         logger.error(f"Error during agent execution: {str(e)}")
