@@ -179,7 +179,7 @@ async def analyze_search_results(question: str, search_results: List[Dict], max_
 
 # Define a model client
 model_client = OpenAIChatCompletionClient(
-    model="gpt-4",  # Using a more capable model for complex reasoning
+    model="gpt-4o-mini",  # Using a more capable model for complex reasoning
     api_key=os.getenv("OPENAI_API_KEY"),
 )
 
