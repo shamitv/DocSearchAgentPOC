@@ -68,13 +68,14 @@ for link in links:
         except Exception:
             continue
 
-# Update Elasticsearch client usage to avoid deprecation warning
-es = es.options(ignore_status=[404])
 
 # Ignore 404 errors when checking if a document exists in Elasticsearch.
 # This is because a 404 simply means the document is not present, which is expected
 # for new dumps that have not been processed yet. This avoids unnecessary exceptions
 # and allows the script to proceed with downloading and indexing the dump.
+es = es.options(ignore_status=[404])
+
+
 for filename, dump_date in dump_files:
     file_url = DUMP_URL + filename
     local_path = os.path.join(DUMP_SUBDIR, filename.replace('/', '_'))  # Replace slashes for local storage
