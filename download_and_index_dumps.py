@@ -19,6 +19,10 @@ logging.basicConfig(
 # Load environment variables
 load_dotenv()
 
+# Raise exception if required environment variables are not set
+if not os.getenv("ES_HOST") or not os.getenv("ES_PORT") or not os.getenv("ES_DUMP_INDEX"):
+    raise EnvironmentError("Required environment variables ES_HOST, ES_PORT, or ES_DUMP_INDEX are not set. Exiting.")
+
 ES_HOST = os.getenv("ES_HOST", "localhost")
 ES_PORT = os.getenv("ES_PORT", "7020")
 ES_INDEX = os.getenv("ES_DUMP_INDEX", "wikipedia_dumps")
