@@ -5,3 +5,4 @@ openai
 autogenstudio
 autogen-ext[openai]
 autogen-agentchat
+chainlit

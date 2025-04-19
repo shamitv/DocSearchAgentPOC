@@ -1,0 +1,38 @@
+[project]
+# Whether to enable telemetry (default: true). No personal data is collected.
+enable_telemetry = true
+
+# List of environment variables to be provided by each user to use the app
+user_env = []
+
+# Duration (in seconds) during which the session is saved when the connection is lost
+session_timeout = 3600
+
+# Enable third-party plugins (default: true)
+enable_third_party_plugins = true
+
+[UI]
+# Name of the app and chatbot
+name = "Advanced Knowledge Agent"
+
+# Description of the app and chatbot
+description = "An AI agent that answers questions using a Wikipedia knowledge base"
+
+# The default value for the expand messages settings (default: false)
+default_expand_messages = false
+
+# Hide the chain of thought details from the user (default: false)
+hide_cot = false
+
+# Custom theme
+[UI.theme]
+primary = "#4A7AFF"
+
+# Custom font (default: "Inter")
+font = "Inter"
+
+# Whether to show the prompt playground (default: true)
+prompt_playground = true
+
+[meta]
+generated_by = "0.7.700"
