@@ -274,57 +274,180 @@ async def analyze_search_results(question: str, search_results: List[Dict], max_
             "supporting_evidence": []
         })
     
-    # For demonstration purposes, check if any results contain relevant keywords
-    # This is a simplified analysis that should be replaced with more sophisticated logic
-    question_lower = question.lower()
-    keywords = ["moon", "walk", "first", "person", "astronaut", "apollo", "armstrong", "aldrin"]
+    # Format search results for the prompt
+    formatted_results = ""
+    truncated_results = search_results[:10]  # Limit to 10 results to keep prompt size manageable
     
-    relevant_results = []
-    for result in search_results:
-        content = result.get("content", "").lower()
-        title = result.get("title", "").lower()
-        text = content + " " + title
+    for i, result in enumerate(truncated_results):
+        title = result.get("title", "No title")
+        content = result.get("content", "No content")
+        score = result.get("score", 0)
         
-        relevance_score = 0
-        for keyword in keywords:
-            if keyword in text:
-                relevance_score += 1
-                
-        if relevance_score >= 2:  # If at least 2 keywords are found
-            relevant_results.append(result)
-    
-    found_name = any("armstrong" in r.get("content", "").lower() for r in search_results)
-    found_date = any("1969" in r.get("content", "") for r in search_results)
-    
-    # Determine if we found an answer
-    if found_name and found_date:
-        logger.info("Answer found in search results")
-        analysis = {
-            "answer_found": True,
-            "answer": "Neil Armstrong was the first person to walk on the moon on July 20, 1969",
-            "missing_information": None,
-            "confidence": 0.8,
-            "supporting_evidence": relevant_results
-        }
-    else:
-        logger.info("Answer not fully found in search results")
-        missing = []
-        if not found_name:
-            missing.append("name of the first person")
-        if not found_date:
-            missing.append("date of the moon landing")
+        # Truncate content if very long to avoid excessive token usage
+        content_preview = content
+        if len(content) > max_tokens // len(truncated_results):
+            content_preview = content[:max_tokens // len(truncated_results)] + "..."
             
+        formatted_results += f"RESULT {i+1} (score: {score}):\n"
+        formatted_results += f"TITLE: {title}\n"
+        formatted_results += f"CONTENT: {content_preview}\n\n"
+    
+    # Construct a prompt for the LLM to analyze search results
+    prompt = f"""You are an expert research analyst. Given a question and search results, your task is to:
+1. Analyze if the search results contain an answer to the question
+2. Extract and synthesize the answer if found
+3. Identify what information is missing if the answer isn't complete
+4. Rate your confidence in the answer (0.0-1.0)
+
+QUESTION: {question}
+
+SEARCH RESULTS:
+{formatted_results}
+
+Provide your analysis in the following structured format:
+1. Answer found (yes/no): Based on whether the search results contain sufficient information to answer the question
+2. Answer (if found): A comprehensive answer synthesized from the search results
+3. Missing information (if any): What relevant information is missing from the search results
+4. Confidence score (0.0-1.0): How confident you are in the answer based on the search results
+5. Supporting evidence: List the specific results (by their number) that support your answer
+6. Reasoning: Brief explanation of your analysis
+
+FORMAT YOUR RESPONSE AS A JSON OBJECT with the following keys: 
+"answer_found" (boolean),
+"answer" (string or null),
+"missing_information" (string or null), 
+"confidence" (float between 0.0 and 1.0),
+"supporting_evidence" (array of result numbers),
+"reasoning" (string)
+"""
+    
+    try:
+        # Call the LLM to analyze the search results
+        logger.info("Calling LLM to analyze search results")
+        
+        # Use the model_client to call the LLM
+        response = await model_client.create(
+            messages=[
+                SystemMessage(content="You are a search result analysis assistant that provides accurate, factual JSON responses."),
+                UserMessage(content=prompt, source="user")
+            ]
+        )
+        
+        # Extract the LLM's response
+        analysis_text = response.content
+        logger.info("Analysis response received from LLM")
+        
+        try:
+            # Try to parse the LLM's response as JSON
+            # The response might already be in JSON format
+            if isinstance(analysis_text, str):
+                # If it's a string, try to parse it
+                # First, try to extract JSON if it's wrapped in markdown code blocks
+                if "```json" in analysis_text:
+                    json_part = analysis_text.split("```json")[1].split("```")[0].strip()
+                    analysis = json.loads(json_part)
+                elif "```" in analysis_text:
+                    json_part = analysis_text.split("```")[1].split("```")[0].strip()
+                    analysis = json.loads(json_part)
+                else:
+                    # Try to parse the whole text as JSON
+                    analysis = json.loads(analysis_text)
+            else:
+                # If it's not a string (e.g., it might be a dict already)
+                analysis = analysis_text
+                
+            # Ensure all required fields are present
+            required_fields = ["answer_found", "answer", "missing_information", "confidence", 
+                             "supporting_evidence", "reasoning"]
+            for field in required_fields:
+                if field not in analysis:
+                    # Add missing field with default value
+                    if field == "answer_found":
+                        analysis[field] = False
+                    elif field == "confidence":
+                        analysis[field] = 0.0
+                    elif field == "supporting_evidence":
+                        analysis[field] = []
+                    else:
+                        analysis[field] = None
+            
+            # Ensure supporting_evidence is a list of integers
+            if not isinstance(analysis["supporting_evidence"], list):
+                analysis["supporting_evidence"] = []
+            else:
+                # Convert any string numbers to integers
+                analysis["supporting_evidence"] = [
+                    int(ev) if isinstance(ev, str) and ev.isdigit() else ev 
+                    for ev in analysis["supporting_evidence"]
+                ]
+                
+            # Ensure confidence is a float between 0 and 1
+            try:
+                analysis["confidence"] = float(analysis["confidence"])
+                if analysis["confidence"] < 0 or analysis["confidence"] > 1:
+                    analysis["confidence"] = max(0, min(1, analysis["confidence"]))
+            except (ValueError, TypeError):
+                analysis["confidence"] = 0.0
+                
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            logger.error(f"Failed to parse LLM response as JSON: {str(e)}")
+            logger.error(f"Raw LLM response: {analysis_text}")
+            
+            # Create a fallback analysis based on what might be in the text
+            answer_found = "yes" in analysis_text.lower() and "answer found: yes" in analysis_text.lower()
+            
+            # Try to extract an answer if one was found
+            answer = None
+            if answer_found:
+                # Look for patterns that might indicate the start of an answer
+                patterns = ["answer:", "answer is:", "the answer is:"]
+                for pattern in patterns:
+                    if pattern in analysis_text.lower():
+                        answer_part = analysis_text.lower().split(pattern)[1].split("\n")[0].strip()
+                        if answer_part:
+                            answer = answer_part
+                            break
+            
+            analysis = {
+                "answer_found": answer_found,
+                "answer": answer,
+                "missing_information": "Unable to extract missing information from LLM response",
+                "confidence": 0.5 if answer_found else 0.0,
+                "supporting_evidence": [],
+                "reasoning": "Error parsing LLM response. This is a fallback analysis."
+            }
+    
+    except Exception as e:
+        logger.error(f"Error analyzing search results with LLM: {str(e)}")
+        # Create a fallback analysis if the LLM call fails
         analysis = {
             "answer_found": False,
             "answer": None,
-            "missing_information": f"Missing information: {', '.join(missing)}",
-            "confidence": 0.3,
-            "supporting_evidence": relevant_results
+            "missing_information": f"Error analyzing search results: {str(e)}",
+            "confidence": 0.0,
+            "supporting_evidence": [],
+            "reasoning": "LLM analysis failed due to an error."
         }
+    
+    # Add reference to actual supporting evidence objects
+    if analysis.get("supporting_evidence"):
+        # Convert supporting evidence numbers to actual result objects
+        evidence_objects = []
+        for evidence_num in analysis["supporting_evidence"]:
+            try:
+                # Evidence numbers are 1-indexed in the prompt
+                idx = int(evidence_num) - 1
+                if 0 <= idx < len(search_results):
+                    evidence_objects.append(search_results[idx])
+            except (ValueError, TypeError):
+                continue
+                
+        # Replace the original list of numbers with the actual evidence objects
+        analysis["supporting_evidence"] = evidence_objects
     
     elapsed_time = time.time() - start_time
     logger.info(f"Analysis completed in {elapsed_time:.2f} seconds")
-    logger.info(f"Analysis result - answer found: {analysis['answer_found']}")
+    logger.info(f"Analysis result - answer found: {analysis.get('answer_found', False)}")
     
     return json.dumps(analysis)
 
