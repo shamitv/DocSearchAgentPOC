@@ -3,36 +3,23 @@ from autogen_agentchat.ui import Console
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_core.models import SystemMessage, UserMessage
 import os
-from dotenv import load_dotenv
-from elasticsearch import Elasticsearch
 import asyncio
 import json
 import time
 import logging
 from typing import List, Dict, Any, Optional
-from utils import ElasticsearchClient
+from utils import EnvLoader, LoggerConfig, ElasticsearchClient
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("knowledge_agent.log"),
-        logging.StreamHandler()
-    ]
-)
+# Setup logging using LoggerConfig
+LoggerConfig.configure_logging()
 logger = logging.getLogger("advanced_knowledge_agent")
 logger.info("Initializing Advanced Knowledge Agent")
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables using EnvLoader
+es_host, es_port, es_index = EnvLoader.load_env()
 logger.info("Environment variables loaded")
 
-# Initialize Elasticsearch client
-es_host = os.getenv("ES_HOST", "localhost")
-es_port = os.getenv("ES_PORT", "9200")
-es_index = os.getenv("ES_INDEX", "wikipedia")
-
+# Initialize Elasticsearch client using ElasticsearchClient
 logger.info(f"Connecting to Elasticsearch at {es_host}:{es_port}, index: {es_index}")
 try:
     es_client = ElasticsearchClient.get_client(es_host, es_port)
