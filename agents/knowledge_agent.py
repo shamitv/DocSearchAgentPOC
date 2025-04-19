@@ -85,6 +85,9 @@ async def search_knowledge_base(query: str, max_results: int = 5) -> str:
             text = source.get("text", "No content")
             score = hit["_score"]
             
+            # Log the title of each analyzed article
+            logger.info(f"Analyzed article title: {title}")
+            
             results.append(f"Result {i+1} (Score: {score}):\nTitle: {title}\nContent: {text[:500]}...\n")
             
         elapsed_time = time.time() - start_time
@@ -136,7 +139,7 @@ logger.info("Knowledge agent created successfully")
 # Run the agent and stream the messages to the console
 async def main() -> None:
     # You can replace the task with any question you want to ask
-    task = "Who was the first person to walk on the moon and when did it happen?"
+    task = "How much Tariff was put on India by the US in April 2025?"
     logger.info(f"Starting agent with task: {task}")
     try:
         await Console(knowledge_agent.run_stream(task=task))
