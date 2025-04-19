@@ -395,7 +395,7 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
         "processing_time": elapsed_time
     }
 
-# Run the agent and stream the messages to the console
+# Update the main function to ensure identified queries are executed immediately
 async def main() -> None:
     # You can replace the task with any question you want to ask
     task = "when did trump announce liberation day tariffs?"
@@ -404,10 +404,28 @@ async def main() -> None:
         # First use the answer_from_knowledge_base function to get search results
         logger.info("Starting knowledge base search process")
         search_results = await answer_from_knowledge_base(task)
-        
+
+        # Check if additional queries were identified but not executed
+        if search_results.get("final_answer") is None and search_results.get("search_history"):
+            logger.info("Identified queries were not executed. Executing them now.")
+            additional_queries = [
+                query["query"] for query in search_results.get("search_history", [])
+                if not query.get("results")
+            ]
+
+            for query in additional_queries:
+                logger.info(f"Executing additional query: {query}")
+                results_json = await search_knowledge_base(query)
+                results = json.loads(results_json)
+                if results.get("success", False):
+                    search_results["search_history"].append({
+                        "query": query,
+                        "results": results.get("results", [])
+                    })
+
         # Then pass the results to the agent
         logger.info("Passing search results to agent for final response")
-        
+
         # Create a new prompt with the search results
         enhanced_task = f"""
 Question: {task}
