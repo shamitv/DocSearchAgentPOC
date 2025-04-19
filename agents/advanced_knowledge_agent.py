@@ -398,7 +398,7 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
 # Run the agent and stream the messages to the console
 async def main() -> None:
     # You can replace the task with any question you want to ask
-    task = "Who was the first person to walk on the moon and when did it happen?"
+    task = "when did trump announce liberation day tariffs?"
     logger.info(f"Starting agent with task: {task}")
     try:
         # First use the answer_from_knowledge_base function to get search results
