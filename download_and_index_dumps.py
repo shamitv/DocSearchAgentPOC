@@ -4,6 +4,17 @@ import os
 from datetime import datetime
 from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("download_and_index_dumps.log"),
+        logging.StreamHandler()
+    ]
+)
 
 # Load environment variables
 load_dotenv()
@@ -62,28 +73,33 @@ for filename, dump_date in dump_files:
     local_path = os.path.join(DUMP_SUBDIR, filename.replace('/', '_'))  # Replace slashes for local storage
     # Check if already processed in ES
     es_id = filename
-    doc = es.get(index=ES_INDEX, id=es_id, ignore=[404])
-    if doc.get('found') and doc['_source'].get('status') == 'processed':
-        print(f"Already processed: {filename}")
-        continue
-    # Download if not present
-    if not os.path.exists(local_path):
-        print(f"Downloading {filename}...")
-        with requests.get(file_url, stream=True) as r:
-            r.raise_for_status()
-            with open(local_path, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-    else:
-        print(f"Already downloaded: {filename}")
-    # Index metadata in ES
-    es.index(index=ES_INDEX, id=es_id, document={
-        'filename': filename,
-        'date': dump_date.isoformat(),
-        'status': 'downloaded',
-        'local_path': local_path,
-        'url': file_url
-    })
-    print(f"Indexed {filename} in ES as 'downloaded'.")
+    try:
+        doc = es.get(index=ES_INDEX, id=es_id, ignore=[404])
+        if doc.get('found') and doc['_source'].get('status') == 'processed':
+            logging.info(f"Already processed: {filename}")
+            continue
+        # Download if not present
+        if not os.path.exists(local_path):
+            logging.info(f"Downloading {filename}...")
+            with requests.get(file_url, stream=True) as r:
+                r.raise_for_status()
+                with open(local_path, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        f.write(chunk)
+        else:
+            logging.info(f"Already downloaded: {filename}")
+        # Index metadata in ES
+        es.index(index=ES_INDEX, id=es_id, document={
+            'filename': filename,
+            'date': dump_date.isoformat(),
+            'status': 'downloaded',
+            'local_path': local_path,
+            'url': file_url
+        })
+        logging.info(f"Indexed {filename} in ES as 'downloaded'.")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to download {file_url}: {e}")
+    except Exception as e:
+        logging.error(f"Failed to process {filename}: {e}")
 
-print("Done.")
+logging.info("Done.")
