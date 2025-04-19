@@ -5,45 +5,14 @@ from datetime import datetime
 from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
 import logging
+from utils import EnvLoader, LoggerConfig
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("download_and_index_dumps.log"),
-        logging.StreamHandler()
-    ]
-)
+LoggerConfig.configure_logging()
 
 # Load environment variables
-load_dotenv()
+ES_HOST, ES_PORT, ES_INDEX = EnvLoader.load_env()
 
-# Debugging: Log the absolute path of the .env file
-env_file_path = os.path.abspath(".env")
-logging.info(f"Absolute path of .env file: {env_file_path}")
-
-# Debugging: Check if environment variables are loaded
-current_dir = os.getcwd()
-env_file_exists = os.path.exists(".env")
-env_file_status = "found" if env_file_exists else "not found"
-logging.info(f"Current directory: {current_dir}")
-logging.info(f".env file status: {env_file_status}")
-
-# Debugging: Log the values of environment variables after loading
-logging.info(f"ES_HOST: {os.getenv('ES_HOST')}")
-logging.info(f"ES_PORT: {os.getenv('ES_PORT')}")
-logging.info(f"ES_DUMP_INDEX: {os.getenv('ES_DUMP_INDEX')}")
-
-# Raise exception if required environment variables are not set
-if not os.getenv("ES_HOST") or not os.getenv("ES_PORT") or not os.getenv("ES_DUMP_INDEX"):
-    raise EnvironmentError(f"Required environment variables ES_HOST, ES_PORT, or ES_DUMP_INDEX are not set.\n"
-                           f"Current directory: {current_dir}\n"
-                           f".env file status: {env_file_status}. Exiting.")
-
-ES_HOST = os.getenv("ES_HOST", "localhost")
-ES_PORT = os.getenv("ES_PORT", "7020")
-ES_INDEX = os.getenv("ES_DUMP_INDEX", "wikipedia_dumps")
 DUMP_DIR = "./data/wikidump/"
 DUMP_URL = "https://dumps.wikimedia.org/other/incr/enwiki/"
 CUTOFF_DATE = datetime(2025, 4, 1)
