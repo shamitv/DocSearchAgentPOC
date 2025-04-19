@@ -1,6 +1,7 @@
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.ui import Console
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_core.models import SystemMessage, UserMessage
 import os
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
@@ -124,10 +125,10 @@ async def generate_search_queries(question: str, previous_queries: List[str] = N
     if previous_queries:
         logger.info(f"Previous queries: {previous_queries}")
     start_time = time.time()
-
+    
     # If we're in a refinement stage (after initial queries)
     refinement_mode = previous_queries is not None and search_results is not None
-
+    
     try:
         # Construct a prompt for the LLM based on what stage we're in
         if refinement_mode:
@@ -144,7 +145,7 @@ async def generate_search_queries(question: str, previous_queries: List[str] = N
                     content_preview = res.get("content", "")[:100] + "..." if len(res.get("content", "")) > 100 else res.get("content", "")
                     formatted_results += f"  Result {j+1}: {title}\n  Preview: {content_preview}\n"
                 formatted_results += "\n"
-
+            
             # Create a prompt for refining queries based on previous results
             prompt = f"""You are a search query generator for a research system. Your goal is to generate refined search queries 
 based on initial search results to better answer a user's question.
@@ -182,48 +183,24 @@ Generate {num_queries} different search queries that:
 
 Return ONLY a numbered list of search queries, one per line, with no explanations or additional text.
 """
-
+        
         # Call the LLM to generate queries
         logger.info("Calling LLM to generate search queries")
-        response = await model_client.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a search query generation assistant. Generate concise, effective search queries."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.7,  # Some creativity but not too random
-            max_tokens=500
-        )
-
+        try:
+            response = await model_client.create(
+                messages=[
+                    SystemMessage(content="You are a search query generation assistant. Generate concise, effective search queries."),
+                    UserMessage(content=prompt, source="user")
+                ]
+            )
+        except Exception as e:
+            logger.error(f"Error calling LLM: {str(e)}", exc_info=True)
+            raise
         # Process the response to extract queries
-        generated_text = response.choices[0].message.content.strip()
-        logger.info(f"Raw LLM response: {generated_text}")
-
-        # Extract queries from the numbered list format
-        query_lines = [line.strip() for line in generated_text.split('\n') if line.strip()]
-        queries = []
-
-        for line in query_lines:
-            # Remove numbering (like "1.", "2.", etc.)
-            if '. ' in line and line[0].isdigit():
-                query = line.split('. ', 1)[1].strip()
-            else:
-                query = line.strip()
-
-            if query:
-                # Remove quotes if present
-                query = query.strip('"\'')
-                queries.append(query)
-
-        # Ensure we have the requested number of queries
-        if not queries:
-            # Fallback if parsing failed
-            logger.warning("Failed to parse queries from LLM response, using fallbacks")
+        generated_text = response.content
+        if isinstance(generated_text, list):
+            # If it's a list of function calls, we can't use it for queries
+            logger.warning("LLM returned function calls instead of text, using fallbacks")
             queries = [
                 question,
                 f"{question} facts",
@@ -231,24 +208,57 @@ Return ONLY a numbered list of search queries, one per line, with no explanation
                 f"{question} when",
                 f"{question} who"
             ]
-
-        # Limit to requested number
-        queries = queries[:num_queries]
-
+        else:
+            # Use the string content
+            logger.info(f"Raw LLM response: {generated_text}")
+            
+            # Extract queries from the numbered list format
+            query_lines = [line.strip() for line in generated_text.split('\n') if line.strip()]
+            queries = []
+            
+            for line in query_lines:
+                # Remove numbering (like "1.", "2.", etc.)
+                if '. ' in line and line[0].isdigit():
+                    query = line.split('. ', 1)[1].strip()
+                else:
+                    query = line.strip()
+                    
+                if query:
+                    # Remove quotes if present
+                    query = query.strip('"\'')
+                    queries.append(query)
+            
+            # Ensure we have the requested number of queries
+            if not queries:
+                # Fallback if parsing failed
+                logger.warning("Failed to parse queries from LLM response, using fallbacks")
+                queries = [
+                    question,
+                    f"{question} facts",
+                    f"{question} details",
+                    f"{question} when",
+                    f"{question} who"
+                ]
+            
+            # Limit to requested number
+            queries = queries[:num_queries]
+        
     except Exception as e:
-        logger.error(f"Error generating queries: {str(e)}")
+        logger.error(f"Error generating queries with LLM: {str(e)}")
         # Fallback to basic queries if there's an error
         queries = [
-            f"{question}",
-            f"{question} details",
-            f"{question} when"
+            question,
+            f"{question} facts",
+            f"{question} history",
+            f"{question} date",
+            f"{question} details"
         ]
-
+    
     elapsed_time = time.time() - start_time
     logger.info(f"Generated {len(queries)} queries in {elapsed_time:.2f} seconds")
     logger.info(f"Generated queries: {queries}")
-
-    return json.dumps(queries[:num_queries])  # Only return the requested number of queries
+    
+    return json.dumps(queries)
 
 # Function to analyze search results and determine if the answer was found
 async def analyze_search_results(question: str, search_results: List[Dict], max_tokens: int = 1500) -> str:
