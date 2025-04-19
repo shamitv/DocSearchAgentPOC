@@ -7,27 +7,19 @@ import time
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 import asyncio
+from utils import EnvLoader, LoggerConfig
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("knowledge_agent.log"),
-        logging.StreamHandler()
-    ]
-)
+# Configure logging using LoggerConfig
+LoggerConfig.configure_logging()
 logger = logging.getLogger("knowledge_agent")
 logger.info("Initializing Knowledge Agent")
 
-# Load environment variables from .env file
-load_dotenv()
-logger.info("Environment variables loaded")
-
-# Initialize Elasticsearch client
-es_host = os.getenv("ES_HOST", "localhost")
-es_port = os.getenv("ES_PORT", "9200")
-es_index = os.getenv("ES_INDEX", "wikipedia")
+# Load environment variables using EnvLoader
+try:
+    es_host, es_port, es_index = EnvLoader.load_env()
+except EnvironmentError as e:
+    logger.error(f"Environment setup failed: {str(e)}")
+    raise
 
 logger.info(f"Connecting to Elasticsearch at {es_host}:{es_port}, index: {es_index}")
 try:
