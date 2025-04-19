@@ -51,12 +51,12 @@ async def on_message(message: cl.Message):
     question = message.content
     
     # Create a thinking message that will be updated with progress
-    thinking_msg = cl.Message(content="Thinking...", author="System")
-    await thinking_msg.send()
+    thinking_msg = await cl.Message(content="Thinking...", author="System").send()
     
     try:
         # Start search process
-        await thinking_msg.update(content="Generating initial search queries...")
+        thinking_msg.content = "Generating initial search queries..."
+        await thinking_msg.update()
         
         # Generate initial queries
         queries_json = await generate_search_queries(question)
@@ -64,28 +64,22 @@ async def on_message(message: cl.Message):
         
         # Update thinking message with the queries
         query_list = "\n".join([f"- {q}" for q in queries])
-        await thinking_msg.update(content=f"Generated search queries:\n{query_list}\n\nSearching knowledge base...")
+        thinking_msg.content = f"Generated search queries:\n{query_list}\n\nSearching knowledge base..."
+        await thinking_msg.update()
         
         # Track all results for display
         all_results = []
-        search_elements = []
         
         # Execute searches for each query
         for i, query in enumerate(queries):
-            # Create a search element to display results
-            search_element = cl.Text(
-                name=f"search-{i}",
-                content=f"Searching for: {query}",
-                display="inline"
-            )
-            await search_element.send()
-            search_elements.append(search_element)
+            # Create a search results message for each query
+            search_msg = await cl.Message(content=f"Searching for: {query}", author="System").send()
             
             # Execute search
             results_json = await search_knowledge_base(query)
             results = json.loads(results_json)
             
-            # Update search element with results
+            # Update search message with results
             if results.get("success", False):
                 result_items = results.get("results", [])
                 all_results.extend(result_items)
@@ -95,12 +89,16 @@ async def on_message(message: cl.Message):
                 for r in result_items:
                     result_text += f"- {r.get('title')}: {r.get('content')[:100]}...\n"
                 
-                await search_element.update(content=result_text)
+                search_msg.content = result_text
+                await search_msg.update()
             else:
-                await search_element.update(content=f"No results found for '{query}'")
+                search_msg.content = f"No results found for '{query}'"
+                await search_msg.update()
         
         # Analyze results
-        await thinking_msg.update(content="Analyzing search results...")
+        thinking_msg.content = "Analyzing search results..."
+        await thinking_msg.update()
+        
         if all_results:
             analysis_json = await analyze_search_results(question, all_results)
             analysis = json.loads(analysis_json)
@@ -134,15 +132,17 @@ Missing information: {missing}
 
 Please analyze these search results and provide the best possible answer to the question.
 """
-                # Remove the thinking message since we're now using the agent
-                await thinking_msg.update(content="Processing final answer...")
+                # Update the thinking message
+                thinking_msg.content = "Processing final answer..."
+                await thinking_msg.update()
                 
                 # Use the advanced agent to generate a response
                 final_response = ""
                 async for chunk in advanced_knowledge_agent.run_stream(task=enhanced_task):
                     if isinstance(chunk, str):
                         final_response += chunk
-                        await thinking_msg.update(content=f"Generating answer...\n\n{final_response}")
+                        thinking_msg.content = f"Generating answer...\n\n{final_response}"
+                        await thinking_msg.update()
                 
                 # Send the final answer
                 await cl.Message(content=final_response, author="Knowledge Agent").send()
@@ -157,7 +157,8 @@ Please analyze these search results and provide the best possible answer to the 
         
     except Exception as e:
         logger.error(f"Error processing message: {str(e)}")
-        await thinking_msg.update(content=f"An error occurred: {str(e)}")
+        thinking_msg.content = f"An error occurred: {str(e)}"
+        await thinking_msg.update()
         await cl.Message(
             content="I encountered an error while processing your request. Please try again.",
             author="System"

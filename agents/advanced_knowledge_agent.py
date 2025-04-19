@@ -106,9 +106,10 @@ async def search_knowledge_base(query: str, max_results: int = 5) -> str:
 
 # Function to generate multiple search queries
 async def generate_search_queries(question: str, previous_queries: List[str] = None, 
-                                 search_results: List[Dict] = None, num_queries: int = 3) -> str:
+                                 search_results: List[Dict] = None, num_queries: int = 5) -> str:
     """
-    Generate multiple search queries based on a question and optionally previous search results.
+    Generate multiple search queries based on a question and optionally previous search results
+    using an LLM to think of useful queries.
     
     Args:
         question: The original question to answer
@@ -120,48 +121,120 @@ async def generate_search_queries(question: str, previous_queries: List[str] = N
         JSON string containing new search queries
     """
     logger.info(f"Generating search queries for question: '{question}'")
-    logger.info(f"Previous queries: {previous_queries}")
+    if previous_queries:
+        logger.info(f"Previous queries: {previous_queries}")
     start_time = time.time()
-    
-    # For first-time queries with no prior context, use predefined patterns
-    # This helps avoid an extra API call when we're just starting
-    if not previous_queries and not search_results:
-        logger.info("Using predefined search query patterns")
-        queries = [
-            f"{question}",
-            f"Neil Armstrong moon landing",
-            f"Apollo 11 moon landing 1969",
-            f"first person to walk on moon date",
-            f"moon landing history"
-        ]
-        
-        logger.info(f"Generated {len(queries)} predefined queries")
-        logger.info(f"Generated queries: {queries}")
-        
-        return json.dumps(queries)
-    
-    # For refined queries based on previous results, we need the model's help
-    queries = []
+
+    # If we're in a refinement stage (after initial queries)
+    refinement_mode = previous_queries is not None and search_results is not None
+
     try:
-        # In a production system, we would use a proper call to the LLM here
-        # This is a simplified version for demonstration
-        if "moon" in question.lower():
-            queries = [
-                "Neil Armstrong Apollo 11",
-                "July 20 1969 moon landing",
-                "first moonwalk NASA",
-                "Buzz Aldrin Apollo mission",
-                "Eagle lunar module landing"
-            ]
+        # Construct a prompt for the LLM based on what stage we're in
+        if refinement_mode:
+            # Format previous search results for the prompt
+            formatted_results = ""
+            for i, result in enumerate(search_results):
+                if i >= 3:  # Limit to first 3 results to keep prompt size reasonable
+                    break
+                query = result.get("query", "Unknown query")
+                results_list = result.get("results", [])
+                formatted_results += f"Query: {query}\n"
+                for j, res in enumerate(results_list[:2]):  # Only show first 2 results per query
+                    title = res.get("title", "No title")
+                    content_preview = res.get("content", "")[:100] + "..." if len(res.get("content", "")) > 100 else res.get("content", "")
+                    formatted_results += f"  Result {j+1}: {title}\n  Preview: {content_preview}\n"
+                formatted_results += "\n"
+
+            # Create a prompt for refining queries based on previous results
+            prompt = f"""You are a search query generator for a research system. Your goal is to generate refined search queries 
+based on initial search results to better answer a user's question.
+
+Original question: "{question}"
+
+Previous queries tried:
+{', '.join(previous_queries)}
+
+Results from previous searches:
+{formatted_results}
+
+Based on these results, generate {num_queries} new search queries that:
+1. Target specific information gaps in the initial results
+2. Use different terminology or phrasing that might yield better results
+3. Focus on aspects of the question not well covered in initial results
+4. Are diverse in approach (entity-focused, date-focused, event-focused, etc.)
+5. Would help complete the answer to the original question
+
+Return ONLY a numbered list of search queries, one per line, with no explanations or additional text.
+"""
         else:
-            # Generic diversification of the original query
+            # Initial query generation prompt
+            prompt = f"""You are a search query generator for a research system. Your goal is to generate effective search queries
+to answer a user's question by searching a knowledge base.
+
+Question: "{question}"
+
+Generate {num_queries} different search queries that:
+1. Cover different aspects and interpretations of the question
+2. Use diverse phrasings and terminology
+3. Include specific entities, dates, or events mentioned in the question
+4. Vary in specificity (some broad, some narrow)
+5. Would collectively help build a comprehensive answer
+
+Return ONLY a numbered list of search queries, one per line, with no explanations or additional text.
+"""
+
+        # Call the LLM to generate queries
+        logger.info("Calling LLM to generate search queries")
+        response = await model_client.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a search query generation assistant. Generate concise, effective search queries."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,  # Some creativity but not too random
+            max_tokens=500
+        )
+
+        # Process the response to extract queries
+        generated_text = response.choices[0].message.content.strip()
+        logger.info(f"Raw LLM response: {generated_text}")
+
+        # Extract queries from the numbered list format
+        query_lines = [line.strip() for line in generated_text.split('\n') if line.strip()]
+        queries = []
+
+        for line in query_lines:
+            # Remove numbering (like "1.", "2.", etc.)
+            if '. ' in line and line[0].isdigit():
+                query = line.split('. ', 1)[1].strip()
+            else:
+                query = line.strip()
+
+            if query:
+                # Remove quotes if present
+                query = query.strip('"\'')
+                queries.append(query)
+
+        # Ensure we have the requested number of queries
+        if not queries:
+            # Fallback if parsing failed
+            logger.warning("Failed to parse queries from LLM response, using fallbacks")
             queries = [
-                f"{question} date historical",
-                f"{question} person who",
-                f"{question} facts details",
-                f"{question} official record",
-                f"{question} primary source"
+                question,
+                f"{question} facts",
+                f"{question} details",
+                f"{question} when",
+                f"{question} who"
             ]
+
+        # Limit to requested number
+        queries = queries[:num_queries]
+
     except Exception as e:
         logger.error(f"Error generating queries: {str(e)}")
         # Fallback to basic queries if there's an error
@@ -170,11 +243,11 @@ async def generate_search_queries(question: str, previous_queries: List[str] = N
             f"{question} details",
             f"{question} when"
         ]
-    
+
     elapsed_time = time.time() - start_time
     logger.info(f"Generated {len(queries)} queries in {elapsed_time:.2f} seconds")
     logger.info(f"Generated queries: {queries}")
-    
+
     return json.dumps(queries[:num_queries])  # Only return the requested number of queries
 
 # Function to analyze search results and determine if the answer was found
@@ -398,7 +471,7 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
 # Update the main function to ensure identified queries are executed immediately
 async def main() -> None:
     # You can replace the task with any question you want to ask
-    task = "when did trump announce liberation day tariffs?"
+    task = "What did Trump say about liberation day?"
     logger.info(f"Starting agent with task: {task}")
     try:
         # First use the answer_from_knowledge_base function to get search results
