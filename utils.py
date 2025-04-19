@@ -2,6 +2,7 @@
 import os
 import logging
 from dotenv import load_dotenv
+from elasticsearch import Elasticsearch
 
 class EnvLoader:
     @staticmethod
@@ -42,3 +43,17 @@ class LoggerConfig:
                 logging.StreamHandler()
             ]
         )
+
+class ElasticsearchClient:
+    @staticmethod
+    def get_client(es_host: str, es_port: str):
+        try:
+            es_client = Elasticsearch([f"http://{es_host}:{es_port}"])
+            if es_client.ping():
+                logging.info("Successfully connected to Elasticsearch")
+            else:
+                logging.error("Could not connect to Elasticsearch")
+            return es_client
+        except Exception as e:
+            logging.error(f"Error connecting to Elasticsearch: {str(e)}")
+            raise

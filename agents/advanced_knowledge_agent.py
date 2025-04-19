@@ -9,6 +9,7 @@ import json
 import time
 import logging
 from typing import List, Dict, Any, Optional
+from utils import ElasticsearchClient
 
 # Setup logging
 logging.basicConfig(
@@ -33,13 +34,9 @@ es_index = os.getenv("ES_INDEX", "wikipedia")
 
 logger.info(f"Connecting to Elasticsearch at {es_host}:{es_port}, index: {es_index}")
 try:
-    es_client = Elasticsearch([f"http://{es_host}:{es_port}"])
-    if es_client.ping():
-        logger.info("Successfully connected to Elasticsearch")
-    else:
-        logger.error("Could not connect to Elasticsearch")
+    es_client = ElasticsearchClient.get_client(es_host, es_port)
 except Exception as e:
-    logger.error(f"Error connecting to Elasticsearch: {str(e)}")
+    logger.error(f"Failed to initialize Elasticsearch client: {str(e)}")
     raise
 
 # Define search function that returns structured data for better analysis

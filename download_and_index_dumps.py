@@ -5,7 +5,7 @@ from datetime import datetime
 from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
 import logging
-from utils import EnvLoader, LoggerConfig
+from utils import EnvLoader, LoggerConfig, ElasticsearchClient
 
 # Configure logging
 LoggerConfig.configure_logging()
@@ -24,8 +24,12 @@ os.makedirs(DUMP_SUBDIR, exist_ok=True)
 # Ensure dump directory exists
 os.makedirs(DUMP_DIR, exist_ok=True)
 
-# Connect to Elasticsearch
-es = Elasticsearch([f"http://{ES_HOST}:{ES_PORT}"])
+# Use the ElasticsearchClient utility to get the Elasticsearch client
+try:
+    es = ElasticsearchClient.get_client(ES_HOST, ES_PORT)
+except Exception as e:
+    logging.error(f"Failed to initialize Elasticsearch client: {str(e)}")
+    raise
 
 # Create index if it doesn't exist
 if not es.indices.exists(index=ES_INDEX):

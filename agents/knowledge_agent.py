@@ -7,7 +7,7 @@ import time
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 import asyncio
-from utils import EnvLoader, LoggerConfig
+from utils import EnvLoader, LoggerConfig, ElasticsearchClient
 
 # Configure logging using LoggerConfig
 LoggerConfig.configure_logging()
@@ -23,13 +23,9 @@ except EnvironmentError as e:
 
 logger.info(f"Connecting to Elasticsearch at {es_host}:{es_port}, index: {es_index}")
 try:
-    es_client = Elasticsearch([f"http://{es_host}:{es_port}"])
-    if es_client.ping():
-        logger.info("Successfully connected to Elasticsearch")
-    else:
-        logger.error("Could not connect to Elasticsearch")
+    es_client = ElasticsearchClient.get_client(es_host, es_port)
 except Exception as e:
-    logger.error(f"Error connecting to Elasticsearch: {str(e)}")
+    logger.error(f"Failed to initialize Elasticsearch client: {str(e)}")
     raise
 
 # Define search function to query Elasticsearch
