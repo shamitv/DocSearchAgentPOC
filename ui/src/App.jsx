@@ -46,12 +46,19 @@ const config = {
 
 const App = () => {
   const [count, setCount] = useState(0);
-  const [activeTab, setActiveTab] = useState('testExplorer');
+  const [sampleQuestion, setSampleQuestion] = useState("");  // State for sample input
+  const [generatedQueries, setGeneratedQueries] = useState([]);  // State for generated queries
+  const [selectedQuery, setSelectedQuery] = useState(null);  // State for clicked query
+  const [selectedResults, setSelectedResults] = useState([]);  // State for results of clicked query
+
+  const [activeTab, setActiveTab] = useState('search');  // Default to Search UI tab
 
   var searchApiUrl = import.meta.env.VITE_SEARCH_API_URL || "http://i3tiny1.local:7020/wikipedia/_search";
+  const agentApiUrl = import.meta.env.VITE_AGENT_API_URL || "http://localhost:5001";  // URL for agent API (generate queries)
   if (import.meta.env.MODE === "development") {
     console.log("Development mode detected");
     console.log("Search API URL:", searchApiUrl);
+    console.log("Agent API URL:", agentApiUrl);
   }
   
   return (
@@ -81,7 +88,88 @@ const App = () => {
       {activeTab === 'search' && (
         <SearchProvider config={config}>
           <div style={{ backgroundColor: "#F1F5F9", color: "#0F172A", padding: "20px" }}>
-            <h2 style={{ color: "#0EA5E9" }}>Search UI</h2>
+            {/* Section to generate search queries */}
+            <div style={{ marginBottom: "20px" }}>
+              <input
+                type="text"
+                placeholder="Enter sample question"
+                value={sampleQuestion}
+                onChange={(e) => setSampleQuestion(e.target.value)}
+                style={{ padding: "8px", width: "70%", marginRight: "10px", borderRadius: "4px", border: "1px solid #ccc" }}
+              />
+              <button
+                onClick={async () => {
+                  if (!sampleQuestion) return;
+                  try {
+                    const response = await fetch(`${agentApiUrl}/api/queries?question=${encodeURIComponent(sampleQuestion)}`);
+                    const data = await response.json();
+                    setGeneratedQueries(data.queries || []);
+                  } catch (err) {
+                    console.error("Error generating queries:", err);
+                  }
+                }}
+                style={{ padding: "8px 16px", backgroundColor: "#0EA5E9", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
+              >
+                Generate Queries
+              </button>
+            </div>
+            {/* Display generated queries */}
+            {generatedQueries.length > 0 && (
+              <div style={{ marginBottom: "20px" }}>
+                <h3 style={{ color: "#0EA5E9" }}>Generated Queries:</h3>
+                <ul>
+                  {generatedQueries.map((q, i) => (
+                    <li key={i} style={{ marginBottom: "8px" }}>
+                      <a
+                        href="#"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          setSelectedQuery(q);
+                          try {
+                            const resp = await fetch(
+                              `${agentApiUrl}/api/search`,
+                              {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ query: q, max_results: 5 })
+                              }
+                            );
+                            const data = await resp.json();
+                            setSelectedResults(data.results || []);
+                          } catch (err) {
+                            console.error('Error fetching search results:', err);
+                          }
+                        }}
+                        style={{ color: '#0EA5E9', textDecoration: 'underline', cursor: 'pointer' }}
+                      >
+                        {q}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Display clicked query results */}
+                {selectedResults.length > 0 && (
+                  <div style={{ marginTop: '20px' }}>
+                    <h3 style={{ color: '#0EA5E9' }}>Results for: {selectedQuery}</h3>
+                    {selectedResults.map((res, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          border: '1px solid #0EA5E9',
+                          borderRadius: '5px',
+                          padding: '10px',
+                          margin: '10px 0'
+                        }}
+                      >
+                        <h4 style={{ margin: 0 }}>{res.title}</h4>
+                        <p style={{ margin: '5px 0' }}>{res.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <SearchBox
               inputView={({ getInputProps }) => (
                 <input

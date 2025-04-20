@@ -16,6 +16,8 @@ import importlib
 
 # Import the search_knowledge_base function directly
 from utils import search_knowledge_base
+import asyncio  # Added to run async generate_search_queries
+from agents.advanced_knowledge_agent import generate_search_queries  # Import query generator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -219,6 +221,22 @@ def run_search_query():
             "error": f"Error running search: {str(e)}",
             "traceback": traceback.format_exc()
         }), 500
+
+# New endpoint to generate search queries for a sample question
+@app.route('/api/queries', methods=['GET'])
+def generate_queries_endpoint():
+    """API endpoint to generate search queries from a sample question."""
+    question = request.args.get('question')
+    if not question:
+        return jsonify({"error": "Question parameter is required"}), 400
+    try:
+        # Run the async generate_search_queries function
+        queries_json = asyncio.run(generate_search_queries(question))
+        queries = json.loads(queries_json)
+        return jsonify({"queries": queries})
+    except Exception as e:
+        logger.error(f"Error generating queries: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # Only for development/testing
 if __name__ == '__main__':

@@ -6,19 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      // Proxy all /api calls to test_api.py Flask server for search and query endpoints
       '/api': {
-        target: 'http://i3tiny1.local:7020',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/wikipedia/_search'),
-        configure: (proxy, options) => {
-          proxy.on('proxyReq', (proxyReq, req, res) => {
-            console.log(`[ProxyReq] ${req.method} ${req.url}`);
-          });
-          proxy.on('proxyRes', (proxyRes, req, res) => {
-            console.log(`[ProxyRes] ${req.method} ${req.url} -> ${proxyRes.statusCode}`);
-          });
-        },
-      },
+        target: 'http://localhost:5001',
+        changeOrigin: true
+        // no rewrite: backend routes handle /api/search, /api/queries, etc.
+      }
     },
   },
   configureServer: (server) => {
