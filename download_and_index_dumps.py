@@ -11,7 +11,7 @@ from utils import EnvLoader, LoggerConfig, ElasticsearchClient
 LoggerConfig.configure_logging()
 
 # Load environment variables
-ES_HOST, ES_PORT, ES_INDEX = EnvLoader.load_env()
+ES_HOST, ES_PORT, ES_DUMP_INDEX, ES_INDEX = EnvLoader.load_env()
 
 DUMP_DIR = "./data/wikidump/"
 DUMP_URL = "https://dumps.wikimedia.org/other/incr/enwiki/"
@@ -32,8 +32,8 @@ except Exception as e:
     raise
 
 # Create index if it doesn't exist
-if not es.indices.exists(index=ES_INDEX):
-    es.indices.create(index=ES_INDEX)
+if not es.indices.exists(index=ES_DUMP_INDEX):
+    es.indices.create(index=ES_DUMP_INDEX)
 
 # Scrape the incremental dumps page
 resp = requests.get(DUMP_URL)
@@ -77,7 +77,7 @@ for filename, dump_date in dump_files:
     # Check if already processed in ES
     es_id = filename
     try:
-        doc = es.get(index=ES_INDEX, id=es_id)
+        doc = es.get(index=ES_DUMP_INDEX, id=es_id)
         if doc.get('found') and doc['_source'].get('status') == 'processed':
             logging.info(f"Already processed: {filename}")
             continue
@@ -92,7 +92,7 @@ for filename, dump_date in dump_files:
         else:
             logging.info(f"Already downloaded: {filename}")
         # Index metadata in ES
-        es.index(index=ES_INDEX, id=es_id, document={
+        es.index(index=ES_DUMP_INDEX, id=es_id, document={
             'filename': filename,
             'date': dump_date.isoformat(),
             'status': 'downloaded',
