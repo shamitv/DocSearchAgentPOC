@@ -16,7 +16,7 @@ logger = logging.getLogger("advanced_knowledge_agent")
 logger.info("Initializing Advanced Knowledge Agent")
 
 # Load environment variables using EnvLoader
-es_host, es_port, es_index = EnvLoader.load_env()
+es_host, es_port,es_dump_index ,es_index = EnvLoader.load_env()
 logger.info("Environment variables loaded")
 
 # Initialize Elasticsearch client using ElasticsearchClient
