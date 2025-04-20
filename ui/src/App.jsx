@@ -302,6 +302,18 @@ const App = () => {
               ) : (
                 <>
                   <p><strong>Answer Found:</strong> {agentResponse.answer_found ? 'Yes' : 'No'}</p>
+                  
+                  <div style={{ marginTop: '20px' }}>
+                          <h4>Summary</h4>
+                          <div
+                            style={{ background: '#f3f4f6', padding: '12px', borderRadius: '4px' }}
+                            dangerouslySetInnerHTML={{
+                              __html: marked.parse(
+                                agentResponse.agent_response
+                              )
+                            }}
+                          />
+                        </div>
                   <p><strong>Iterations:</strong> {agentResponse.iterations}</p>
                   <p><strong>Processing Time:</strong> {agentResponse.processing_time?.toFixed(2)} seconds</p>
                   {agentResponse.answer_found && agentResponse.final_answer && (
@@ -329,7 +341,13 @@ const App = () => {
                           <h4>Summary</h4>
                           <div
                             style={{ background: '#f3f4f6', padding: '12px', borderRadius: '4px' }}
-                            dangerouslySetInnerHTML={{ __html: marked.parse(agentResponse.final_answer.answer) }}
+                            dangerouslySetInnerHTML={{
+                              __html: marked.parse(
+                                Array.isArray(agentResponse.final_answer.answer)
+                                  ? agentResponse.final_answer.answer.join('\n')
+                                  : agentResponse.final_answer.answer
+                              )
+                            }}
                           />
                         </div>
                       )}
