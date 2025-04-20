@@ -262,11 +262,39 @@ const App = () => {
             </button>
           </div>
           {agentResponse && (
-            <div style={{ marginTop: '20px' }}>
-              <h3>Agent Response:</h3>
-              <pre style={{ whiteSpace: 'pre-wrap', backgroundColor: '#fff', padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }}>
-                {JSON.stringify(agentResponse, null, 2)}
-              </pre>
+            <div style={{ marginTop: '20px', backgroundColor: '#fff', padding: '20px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+              <h3>Agent Response</h3>
+              <p><strong>Answer Found:</strong> {agentResponse.answer_found ? 'Yes' : 'No'}</p>
+              <p><strong>Iterations:</strong> {agentResponse.iterations}</p>
+              <p><strong>Processing Time:</strong> {agentResponse.processing_time.toFixed(2)} seconds</p>
+              {agentResponse.answer_found && agentResponse.final_answer && (
+                <div style={{ marginTop: '10px' }}>
+                  <h4>Answer</h4>
+                  <p>{agentResponse.final_answer.answer}</p>
+                  <p><strong>Confidence:</strong> {agentResponse.final_answer.confidence}</p>
+                  {agentResponse.final_answer.supporting_evidence && agentResponse.final_answer.supporting_evidence.length > 0 && (
+                    <div>
+                      <h5>Supporting Evidence</h5>
+                      <ul>
+                        {agentResponse.final_answer.supporting_evidence.map((ev, idx) => (
+                          <li key={idx} style={{ marginBottom: '8px' }}>
+                            <strong>{ev.title}</strong>: {ev.content.slice(0, 100)}...
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <h5>Reasoning</h5>
+                  <p>{agentResponse.final_answer.reasoning}</p>
+                </div>
+              )}
+              {/* Collapsible raw JSON for advanced users */}
+              <details style={{ marginTop: '20px' }}>
+                <summary>Show Raw JSON</summary>
+                <pre style={{ whiteSpace: 'pre-wrap', marginTop: '10px', backgroundColor: '#f3f4f6', padding: '10px', borderRadius: '4px' }}>
+                  {JSON.stringify(agentResponse, null, 2)}
+                </pre>
+              </details>
             </div>
           )}
         </div>
