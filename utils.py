@@ -3,6 +3,7 @@ import os
 import logging
 import time
 import json
+import sys
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 
@@ -39,11 +40,14 @@ class EnvLoader:
 class LoggerConfig:
     @staticmethod
     def configure_logging():
+        # Determine log filename based on the main script filename
+        main_file = os.path.basename(sys.argv[0])
+        log_filename = os.path.splitext(main_file)[0] + ".log"
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[
-                logging.FileHandler("download_and_index_dumps.log"),
+                logging.FileHandler(log_filename),
                 logging.StreamHandler()
             ]
         )
