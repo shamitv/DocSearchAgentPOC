@@ -10,6 +10,7 @@ import {
   Paging
 } from "@elastic/react-search-ui";
 import "@elastic/react-search-ui-views/lib/styles/styles.css";
+import { marked } from "marked";
 
 const onSearch = async (searchTerm) => {
   const isDevelopment = import.meta.env.MODE === "development" || process.env.NODE_ENV === "development";
@@ -322,6 +323,16 @@ const App = () => {
                       )}
                       <h5>Reasoning</h5>
                       <p>{agentResponse.final_answer.reasoning}</p>
+                      {/* Render markdown summary if present */}
+                      {agentResponse.final_answer.answer && (
+                        <div style={{ marginTop: '20px' }}>
+                          <h4>Summary</h4>
+                          <div
+                            style={{ background: '#f3f4f6', padding: '12px', borderRadius: '4px' }}
+                            dangerouslySetInnerHTML={{ __html: marked.parse(agentResponse.final_answer.answer) }}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                   {/* Show the raw agent LLM response if available */}
