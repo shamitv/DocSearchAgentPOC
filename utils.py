@@ -43,14 +43,18 @@ class LoggerConfig:
         # Determine log filename based on the main script filename
         main_file = os.path.basename(sys.argv[0])
         log_filename = os.path.splitext(main_file)[0] + ".log"
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_filename),
-                logging.StreamHandler()
-            ]
-        )
+        # Create a dedicated logger with INFO level and attach file and stream handlers
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        logger_name = os.path.splitext(main_file)[0]
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(logging.INFO)
+        file_handler = logging.FileHandler(log_filename)
+        file_handler.setFormatter(formatter)
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        logger.addHandler(stream_handler)
+        return logger
 
 class ElasticsearchClient:
     @staticmethod
