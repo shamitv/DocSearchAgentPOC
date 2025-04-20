@@ -14,6 +14,9 @@ from io import StringIO
 from contextlib import redirect_stdout
 import importlib
 
+# Import the search_knowledge_base function directly
+from utils import search_knowledge_base
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -201,39 +204,21 @@ def run_search_query():
         if not query:
             return jsonify({"error": "Search query is required"}), 400
             
-        # Try to import the search function
-        try:
-            search_fn = None
-            # First try to import from the main module
-            try:
-                import utils
-                if hasattr(utils, 'search_knowledge_base'):
-                    search_fn = utils.search_knowledge_base
-                else:
-                    raise ImportError("search_knowledge_base not found in utils")
-            except ImportError:
-                if not search_fn:
-                    raise ImportError("Could not find search_knowledge_base function in any module")
-                    
-            # Run the search
-            results = search_fn(query, max_results=max_results)
-            
-            return jsonify({
-                "query": query,
-                "max_results": max_results,
-                "results": results
-            })
-            
-        except Exception as e:
-            logger.error(f"Error importing or running search function: {str(e)}")
-            return jsonify({
-                "error": f"Error running search: {str(e)}",
-                "traceback": traceback.format_exc()
-            }), 500
+        # Use the directly imported search_knowledge_base function
+        results = search_knowledge_base(query, max_results=max_results)
+        
+        return jsonify({
+            "query": query,
+            "max_results": max_results,
+            "results": results.get("results", [])
+        })
             
     except Exception as e:
         logger.error(f"Error processing search request: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "error": f"Error running search: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
 
 # Only for development/testing
 if __name__ == '__main__':
