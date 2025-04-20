@@ -8,7 +8,11 @@ import json
 import time
 import logging
 from typing import List, Dict, Any, Optional
-from utils import EnvLoader, LoggerConfig, ElasticsearchClient
+
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from utils import EnvLoader, LoggerConfig, ElasticsearchClient, search_knowledge_base as utils_search_knowledge_base
 
 # Setup logging using LoggerConfig
 LoggerConfig.configure_logging()
@@ -30,67 +34,10 @@ except Exception as e:
 # Define search function that returns structured data for better analysis
 async def search_knowledge_base(query: str, max_results: int = 5) -> str:
     """
-    Search the Elasticsearch knowledge base for information.
-    
-    Args:
-        query: The search query
-        max_results: Maximum number of results to return
-        
-    Returns:
-        JSON string containing search results
+    Wrapper for utils.search_knowledge_base returning JSON string.
     """
-    logger.info(f"Searching knowledge base for: '{query}' (max results: {max_results})")
-    start_time = time.time()
-    
-    try:
-        response = es_client.search(
-            index=es_index,
-            body={
-                "query": {
-                    "multi_match": {
-                        "query": query,
-                        "fields": ["text", "title^5"],  # Title gets higher weight
-                        "type": "best_fields"
-                    }
-                },
-                "size": max_results
-            }
-        )
-        
-        results = []
-        hits = response.get("hits", {}).get("hits", [])
-        
-        if not hits:
-            logger.warning(f"No results found for query: '{query}'")
-            return json.dumps({"success": False, "query": query, "message": f"No results found for query: '{query}'"})
-            
-        logger.info(f"Found {len(hits)} results for query: '{query}'")
-        
-        for i, hit in enumerate(hits):
-            source = hit["_source"]
-            title = source.get("title", "No title")
-            text = source.get("text", "No content")
-            score = hit["_score"]
-            
-            results.append({
-                "rank": i+1,
-                "score": score,
-                "title": title,
-                "content": text[:1000] + ("..." if len(text) > 1000 else "")
-            })
-            
-        elapsed_time = time.time() - start_time
-        logger.info(f"Search completed in {elapsed_time:.2f} seconds")
-        
-        return json.dumps({
-            "success": True,
-            "query": query,
-            "total_hits": len(hits),
-            "results": results
-        })
-    except Exception as e:
-        logger.error(f"Error searching knowledge base: {str(e)}")
-        return json.dumps({"success": False, "query": query, "message": f"Error searching knowledge base: {str(e)}"})
+    results = utils_search_knowledge_base(query, max_results)
+    return json.dumps(results)
 
 # Function to generate multiple search queries
 async def generate_search_queries(question: str, previous_queries: List[str] = None, 
