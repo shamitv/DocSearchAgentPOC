@@ -49,7 +49,7 @@ async def search_knowledge_base(query: str, max_results: int = 5) -> str:
                 "query": {
                     "multi_match": {
                         "query": query,
-                        "fields": ["text", "title^2"],  # Title gets higher weight
+                        "fields": ["text", "title^5"],  # Title gets higher weight
                         "type": "best_fields"
                     }
                 },
