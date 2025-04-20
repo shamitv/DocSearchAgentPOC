@@ -203,6 +203,7 @@ def run_search_query():
             
         # Try to import the search function
         try:
+            search_fn = None
             # First try to import from the main module
             try:
                 import utils
