@@ -9,7 +9,7 @@ import time
 import re
 from typing import List, Dict, Any, Optional
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -142,7 +142,7 @@ conn.commit()
 def log_run_start(question: str) -> str:
     # Generate a random string ID for this run
     run_id = generate_run_id()
-    ts = datetime.utcnow().isoformat()
+    ts = datetime.now(timezone.utc).isoformat()
     cursor.execute(
         'INSERT INTO runs (id, question, start_time) VALUES (?, ?, ?)',
         (run_id, question, ts)
@@ -202,7 +202,7 @@ def log_llm_metrics(response, start_time, model_name="Unknown", is_query=True, r
     
     # Store in database if run_id is provided
     if run_id is not None:
-        ts = datetime.utcnow().isoformat()
+        ts = datetime.now(timezone.utc).isoformat()
         
         try:
             if is_query:
@@ -232,7 +232,7 @@ def log_llm_metrics(response, start_time, model_name="Unknown", is_query=True, r
             logger.error(f"Failed to log {operation} metrics to database: {str(e)}")
 
 def log_query_generation(run_id: int, iteration: int, prompt: str, response: str):
-    ts = datetime.utcnow().isoformat()
+    ts = datetime.now(timezone.utc).isoformat()
     cursor.execute(
         'INSERT INTO query_generations (run_id, iteration, timestamp, prompt, response) VALUES (?, ?, ?, ?, ?)',
         (run_id, iteration, ts, prompt, response)
@@ -241,7 +241,7 @@ def log_query_generation(run_id: int, iteration: int, prompt: str, response: str
 
 
 def log_search_query(run_id: int, iteration: int, query: str):
-    ts = datetime.utcnow().isoformat()
+    ts = datetime.now(timezone.utc).isoformat()
     # Insert run_id, iteration, query, timestamp into search_queries (4 placeholders)
     cursor.execute(
         'INSERT INTO search_queries (run_id, iteration, query, timestamp) VALUES (?, ?, ?, ?)',
@@ -251,7 +251,7 @@ def log_search_query(run_id: int, iteration: int, query: str):
 
 
 def log_search_result(run_id: int, iteration: int, query: str, results: str):
-    ts = datetime.utcnow().isoformat()
+    ts = datetime.now(timezone.utc).isoformat()
     cursor.execute(
         'INSERT INTO search_results (run_id, iteration, query, results, timestamp) VALUES (?, ?, ?, ?, ?)',
         (run_id, iteration, query, results, ts)
@@ -260,7 +260,7 @@ def log_search_result(run_id: int, iteration: int, query: str, results: str):
 
 
 def log_analysis_prompt(run_id: int, iteration: int, result_index: int, prompt: str):
-    ts = datetime.utcnow().isoformat()
+    ts = datetime.now(timezone.utc).isoformat()
     cursor.execute(
         'INSERT INTO analysis_prompts (run_id, iteration, result_index, timestamp, prompt) VALUES (?, ?, ?, ?, ?)',
         (run_id, iteration, result_index, ts, prompt)
@@ -269,7 +269,7 @@ def log_analysis_prompt(run_id: int, iteration: int, result_index: int, prompt: 
 
 
 def log_analysis_result(run_id: int, iteration: int, result_index: int, response: str):
-    ts = datetime.utcnow().isoformat()
+    ts = datetime.now(timezone.utc).isoformat()
     cursor.execute(
         'INSERT INTO analysis_results (run_id, iteration, result_index, timestamp, response) VALUES (?, ?, ?, ?, ?)',
         (run_id, iteration, result_index, ts, response)
