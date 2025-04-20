@@ -12,6 +12,7 @@ from flask_cors import CORS
 import logging
 from io import StringIO
 from contextlib import redirect_stdout
+import importlib
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -188,6 +189,66 @@ def execute_test():
         logger.error(f"Error executing test: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/api/search', methods=['POST'])
+def run_search_query():
+    """API endpoint to run a search query."""
+    try:
+        data = request.json
+        query = data.get('query')
+        max_results = data.get('max_results', 5)
+        
+        if not query:
+            return jsonify({"error": "Search query is required"}), 400
+            
+        # Try to import the search function
+        try:
+            # First try to import from the main module
+            try:
+                import utils
+                if hasattr(utils, 'search_knowledge_base'):
+                    search_fn = utils.search_knowledge_base
+                else:
+                    raise ImportError("search_knowledge_base not found in utils")
+            except ImportError:
+                # If not found, try to find it in any module
+                search_fn = None
+                for file in os.listdir(os.path.dirname(os.path.abspath(__file__))):
+                    if file.endswith('.py') and file != 'test_api.py':
+                        module_name = file[:-3]
+                        try:
+                            spec = importlib.util.spec_from_file_location(module_name, os.path.join(os.path.dirname(os.path.abspath(__file__)), file))
+                            module = importlib.util.module_from_spec(spec)
+                            spec.loader.exec_module(module)
+                            
+                            if hasattr(module, 'search_knowledge_base'):
+                                search_fn = module.search_knowledge_base
+                                break
+                        except Exception:
+                            continue
+                
+                if not search_fn:
+                    raise ImportError("Could not find search_knowledge_base function in any module")
+                    
+            # Run the search
+            results = search_fn(query, max_results=max_results)
+            
+            return jsonify({
+                "query": query,
+                "max_results": max_results,
+                "results": results
+            })
+            
+        except Exception as e:
+            logger.error(f"Error importing or running search function: {str(e)}")
+            return jsonify({
+                "error": f"Error running search: {str(e)}",
+                "traceback": traceback.format_exc()
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error processing search request: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # Only for development/testing
 if __name__ == '__main__':
