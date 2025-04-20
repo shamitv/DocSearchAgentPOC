@@ -174,7 +174,7 @@ Return ONLY a numbered list of search queries, one per line, with no explanation
         # Call the LLM to generate queries
         logger.info("Calling LLM to generate search queries")
         try:
-            response = await model_client.create(
+            response = await query_model_client.create(
                 messages=[
                     SystemMessage(content="You are a search query generation assistant. Generate concise, effective search queries."),
                     UserMessage(content=prompt, source="user")
@@ -325,8 +325,8 @@ FORMAT YOUR RESPONSE AS A JSON OBJECT with the following keys:
         # Call the LLM to analyze the search results
         logger.info("Calling LLM to analyze search results")
         
-        # Use the model_client to call the LLM
-        response = await model_client.create(
+        # Use the analysis_model_client to call the LLM
+        response = await analysis_model_client.create(
             messages=[
                 SystemMessage(content="You are a search result analysis assistant that provides accurate, factual JSON responses."),
                 UserMessage(content=prompt, source="user")
@@ -451,23 +451,38 @@ FORMAT YOUR RESPONSE AS A JSON OBJECT with the following keys:
     
     return json.dumps(analysis)
 
-# Define a model client
-logger.info("Initializing OpenAI client")
+# Define separate model clients for different tasks
+logger.info("Initializing OpenAI clients for different tasks")
 try:
-    model_client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini",  # Using a more capable model for complex reasoning
+    # Model for query generation - using a lighter model for this task
+    query_model_client = OpenAIChatCompletionClient(
+        model="gpt-3.5-turbo",  # Lighter model for generating search queries
         api_key=os.getenv("OPENAI_API_KEY"),
     )
-    logger.info("OpenAI client initialized")
+    logger.info("Query generation model client initialized")
+    
+    # Model for analyzing search results - using a more capable model
+    analysis_model_client = OpenAIChatCompletionClient(
+        model="gpt-4o-mini",  # More capable model for complex analysis
+        api_key=os.getenv("OPENAI_API_KEY"),
+    )
+    logger.info("Analysis model client initialized")
+    
+    # Primary model for the agent's conversations
+    agent_model_client = OpenAIChatCompletionClient(
+        model="gpt-4o-mini",  # Using a capable model for the assistant agent
+        api_key=os.getenv("OPENAI_API_KEY"),
+    )
+    logger.info("Agent model client initialized")
 except Exception as e:
-    logger.error(f"Error initializing OpenAI client: {str(e)}")
+    logger.error(f"Error initializing OpenAI clients: {str(e)}")
     raise
 
 # Define the advanced knowledge agent
 logger.info("Creating advanced knowledge agent")
 advanced_knowledge_agent = AssistantAgent(
     name="advanced_knowledge_agent",
-    model_client=model_client,
+    model_client=agent_model_client,
     tools=[search_knowledge_base, generate_search_queries, analyze_search_results],
     system_message="""
 You are an advanced research assistant that answers questions using a Wikipedia knowledge base through Elasticsearch.
@@ -636,7 +651,9 @@ Please analyze these search results and provide a comprehensive answer to the qu
     finally:
         # Close the connection to the model client
         logger.info("Closing model client connection")
-        await model_client.close()
+        await agent_model_client.close()
+        await query_model_client.close()
+        await analysis_model_client.close()
         logger.info("Model client connection closed")
 
 if __name__ == "__main__":
