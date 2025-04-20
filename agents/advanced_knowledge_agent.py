@@ -185,9 +185,13 @@ def log_llm_metrics(response, start_time, model_name="Unknown", is_query=True, r
             raw_content = str(response.content)[:1000]  # Limit size for storage
         
         if hasattr(response, 'usage'):
-            prompt_tokens = response.usage.prompt_tokens
-            completion_tokens = response.usage.completion_tokens
-            total_tokens = response.usage.total_tokens
+            prompt_tokens = getattr(response.usage, 'prompt_tokens', None)
+            completion_tokens = getattr(response.usage, 'completion_tokens', None)
+            # Calculate total_tokens if not present
+            if hasattr(response.usage, 'total_tokens') and response.usage.total_tokens is not None:
+                total_tokens = response.usage.total_tokens
+            elif prompt_tokens is not None and completion_tokens is not None:
+                total_tokens = prompt_tokens + completion_tokens
             logger.info(f"{operation} token usage - Input: {prompt_tokens}, Output: {completion_tokens}, Total: {total_tokens}")
         else:
             logger.info(f"{operation} completed, but token usage information not available")
@@ -633,13 +637,7 @@ logger.info("Advanced knowledge agent created successfully")
 async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> Dict[str, Any]:
     """
     Answer a question using the knowledge base with iterative search.
-    
-    Args:
-        question: The question to answer
-        max_iterations: Maximum number of search iterations
-        
-    Returns:
-        Dictionary with the final answer and search history
+    Returns a dict with the final answer, search history, and the run_id used for logging.
     """
     logger.info(f"Starting search process for question: '{question}'")
     logger.info(f"Maximum iterations allowed: {max_iterations}")
@@ -716,19 +714,21 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
         "iterations": iterations,
         "search_history": all_results,
         "total_queries": len(all_queries),
-        "processing_time": elapsed_time
+        "processing_time": elapsed_time,
+        "run_id": run_id
     }
 
-# Update the main function to ensure identified queries are executed immediately
-async def main() -> None:
-    # You can replace the task with any question you want to ask
-    #task = "How much reciprocal tariffs were put on China by Trump?"
-    task = "Which schools are present in Trsat"
+async def run_agent_with_search_results(task: str, max_iterations: int = 1):
+    """
+    Run the agent with search results and return the agent's response.
+    max_iterations: maximum number of search iterations to use in answer_from_knowledge_base
+    Returns a tuple: (search_results dict, agent_response)
+    """
     logger.info(f"Starting agent with task: {task}")
     try:
-        # First use the answer_from_knowledge_base function to get search results
         logger.info("Starting knowledge base search process")
-        search_results = await answer_from_knowledge_base(task,1)
+        search_results = await answer_from_knowledge_base(task, max_iterations)
+        run_id = search_results.get("run_id")
 
         # Check if additional queries were identified but not executed
         if search_results.get("final_answer") is None and search_results.get("search_history"):
@@ -760,18 +760,31 @@ Here are the search results from the knowledge base:
 
 Please analyze these search results and provide a comprehensive answer to the question.
 """
-        # Run the agent with the enhanced task containing search results
-        await Console(advanced_knowledge_agent.run_stream(task=enhanced_task))
+        # Capture the agent's output instead of just streaming to console
+        agent_response = await advanced_knowledge_agent.run(task=enhanced_task)
+        # Log LLM metrics for the agent's final response
+        log_llm_metrics(agent_response, time.time(), model_name=getattr(agent_model_client, 'model_name', getattr(agent_model_client, 'model', 'Unknown')), is_query=False, run_id=run_id, iteration=None, raw_prompt=enhanced_task)
         logger.info("Agent task completed successfully")
+        return search_results, agent_response
     except Exception as e:
         logger.error(f"Error during agent execution: {str(e)}")
+        return None, None
     finally:
-        # Close the connection to the model client
         logger.info("Closing model client connection")
         await agent_model_client.close()
         await query_model_client.close()
         await analysis_model_client.close()
         logger.info("Model client connection closed")
+
+async def main() -> None:
+    # You can replace the task with any question you want to ask
+    #task = "How much reciprocal tariffs were put on China by Trump?"
+    task = "Which schools are present in Trsat"
+    search_results, agent_response = await run_agent_with_search_results(task)
+    print("\n===== FINAL SEARCH RESULTS =====\n")
+    print(json.dumps(search_results, indent=2))
+    print("\n===== AGENT RESPONSE =====\n")
+    print(agent_response)
 
 if __name__ == "__main__":
     logger.info("Starting main function")
