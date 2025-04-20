@@ -606,7 +606,7 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
 # Update the main function to ensure identified queries are executed immediately
 async def main() -> None:
     # You can replace the task with any question you want to ask
-    task = "What did Trump say about liberation day?"
+    task = "How much reciprocal tariffs were put on China by Trump?"
     logger.info(f"Starting agent with task: {task}")
     try:
         # First use the answer_from_knowledge_base function to get search results
