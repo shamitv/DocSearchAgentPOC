@@ -14,9 +14,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from utils import EnvLoader, LoggerConfig, ElasticsearchClient, search_knowledge_base as utils_search_knowledge_base
 
-# Setup logging using LoggerConfig
-LoggerConfig.configure_logging()
-logger = logging.getLogger("advanced_knowledge_agent")
+# Setup logging and obtain logger instance
+logger = LoggerConfig.configure_logging()
 logger.info("Initializing Advanced Knowledge Agent")
 
 # Load environment variables using EnvLoader

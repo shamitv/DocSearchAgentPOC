@@ -9,9 +9,8 @@ from elasticsearch import Elasticsearch
 import asyncio
 from utils import EnvLoader, LoggerConfig, ElasticsearchClient
 
-# Configure logging using LoggerConfig
-LoggerConfig.configure_logging()
-logger = logging.getLogger("knowledge_agent")
+# Configure logging and obtain logger instance
+logger = LoggerConfig.configure_logging()
 logger.info("Initializing Knowledge Agent")
 
 # Load environment variables using EnvLoader
