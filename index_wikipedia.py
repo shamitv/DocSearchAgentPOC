@@ -7,18 +7,13 @@ from datetime import datetime, timezone
 import time
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
-from dotenv import load_dotenv
-import os
+from utils import EnvLoader, ElasticsearchClient
+import sys
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Configuration
-ES_URL = os.getenv("ES_URL")
-DUMP_FILE_PATH = os.getenv("DUMP_FILE_PATH")
-
-# Initialize Elasticsearch client
-es = Elasticsearch([ES_URL])
+# Load environment and initialize Elasticsearch client
+es_host, es_port, es_dump_index, es_search_index = EnvLoader.load_env()
+es = ElasticsearchClient.get_client(es_host, es_port)
+INDEX_NAME = es_search_index
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -35,7 +30,7 @@ def index_document(title, text, metadata):
         "metadata": metadata,
         "indexed_on": datetime.now(timezone.utc).isoformat()
     }
-    es.index(index="wikipedia", id=document_id, document=document)
+    es.index(index=INDEX_NAME, id=document_id, document=document)
 
 def extract_plain_text(raw_text):
     """Convert raw markup text to plain text."""
@@ -46,7 +41,7 @@ def index_documents_bulk(documents):
     """Index multiple documents into Elasticsearch in bulk."""
     actions = []
     for doc in documents:
-        action = {"index": {"_index": "wikipedia", "_id": doc["metadata"]["id"]}}
+        action = {"index": {"_index": INDEX_NAME, "_id": doc["metadata"]["id"]}}
         actions.append(action)
         actions.append(doc)
 
@@ -56,7 +51,7 @@ def index_documents_bulk_async(documents):
     """Index multiple documents into Elasticsearch in bulk asynchronously."""
     actions = []
     for doc in documents:
-        action = {"index": {"_index": "wikipedia", "_id": doc["metadata"]["id"]}}
+        action = {"index": {"_index": INDEX_NAME, "_id": doc["metadata"]["id"]}}
         actions.append(action)
         actions.append(doc)
 
@@ -111,6 +106,10 @@ def process_dump(file_path):
     logging.info(f"All tasks completed. Total documents processed: {doc_count}.")
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print(f"Usage: python {sys.argv[0]} <dump_file_path>")
+        sys.exit(1)
+    dump_path = sys.argv[1]
     logging.info("Starting Wikipedia dump processing...")
-    process_dump(DUMP_FILE_PATH)
+    process_dump(dump_path)
     logging.info("Processing completed.")
