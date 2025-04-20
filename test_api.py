@@ -211,22 +211,6 @@ def run_search_query():
                 else:
                     raise ImportError("search_knowledge_base not found in utils")
             except ImportError:
-                # If not found, try to find it in any module
-                search_fn = None
-                for file in os.listdir(os.path.dirname(os.path.abspath(__file__))):
-                    if file.endswith('.py') and file != 'test_api.py':
-                        module_name = file[:-3]
-                        try:
-                            spec = importlib.util.spec_from_file_location(module_name, os.path.join(os.path.dirname(os.path.abspath(__file__)), file))
-                            module = importlib.util.module_from_spec(spec)
-                            spec.loader.exec_module(module)
-                            
-                            if hasattr(module, 'search_knowledge_base'):
-                                search_fn = module.search_knowledge_base
-                                break
-                        except Exception:
-                            continue
-                
                 if not search_fn:
                     raise ImportError("Could not find search_knowledge_base function in any module")
                     
