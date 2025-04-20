@@ -598,8 +598,11 @@ advanced_knowledge_agent = AssistantAgent(
     name="advanced_knowledge_agent",
     model_client=agent_model_client,
     tools=[search_knowledge_base, generate_search_queries, analyze_search_results],
-    system_message="""
+    system_message=f"""
 You are an advanced research assistant that answers questions using a Wikipedia knowledge base through Elasticsearch.
+
+Today's date is {datetime.now().strftime('%-d %B %Y')}. Use this as a reference for any temporal or time-sensitive questions.
+
 Follow this systematic approach for every question:
 
 1. GENERATE INITIAL QUERIES:
