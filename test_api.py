@@ -18,7 +18,7 @@ import sqlite3
 # Import the search_knowledge_base function directly
 from utils import search_knowledge_base
 import asyncio  # Added to run async generate_search_queries
-from agents.advanced_knowledge_agent import generate_search_queries, answer_from_knowledge_base  # Import query generator and main agent function
+from agents.advanced_knowledge_agent import generate_search_queries, answer_from_knowledge_base, run_agent_with_search_results  # Import query generator and main agent function
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -253,8 +253,19 @@ def run_agent():
     if not question:
         return jsonify({"error": "Question parameter is required"}), 400
     try:
-        result = asyncio.run(answer_from_knowledge_base(question, max_iterations))
-        return jsonify(result)
+        search_results, agent_response = asyncio.run(run_agent_with_search_results(question, max_iterations))
+        # Ensure agent_response is JSON serializable
+        try:
+            json.dumps(agent_response)
+        except TypeError:
+            if hasattr(agent_response, 'content'):
+                agent_response = str(agent_response.content)
+            else:
+                agent_response = str(agent_response)
+        return jsonify({
+            "search_results": search_results,
+            "agent_response": agent_response
+        })
     except Exception as e:
         logger.error(f"Error running agent: {str(e)}")
         return jsonify({
