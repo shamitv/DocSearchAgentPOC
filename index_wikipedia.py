@@ -1,12 +1,12 @@
 import bz2
 import mwxml
-from elasticsearch import Elasticsearch
+
 import mwparserfromhell
 import logging
 from datetime import datetime, timezone
 import time
 from concurrent.futures import ThreadPoolExecutor
-from queue import Queue
+
 from utils import EnvLoader, ElasticsearchClient
 import sys
 
