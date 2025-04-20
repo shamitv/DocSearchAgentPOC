@@ -456,7 +456,7 @@ logger.info("Initializing OpenAI clients for different tasks")
 try:
     # Model for query generation - using a lighter model for this task
     query_model_client = OpenAIChatCompletionClient(
-        model="gpt-3.5-turbo",  # Lighter model for generating search queries
+        model="gpt-4o-mini",  # Lighter model for generating search queries
         api_key=os.getenv("OPENAI_API_KEY"),
     )
     logger.info("Query generation model client initialized")

@@ -40,3 +40,50 @@
 .read-the-docs {
   color: #888;
 }
+
+/* New styles for app layout and tabs */
+.app-container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.app-header {
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.app-header h1 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.app-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  padding: 8px 16px;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  background-color: #e0e0e0;
+}
+
+.tab-button.active {
+  background-color: #2196f3;
+  color: white;
+  border-color: #2196f3;
+}

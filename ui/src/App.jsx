@@ -3,6 +3,7 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
+import TestExplorer from './components/TestExplorer';
 import {
   SearchProvider,
   SearchBox,
@@ -44,71 +45,79 @@ const config = {
 };
 
 const App = () => {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
+  const [activeTab, setActiveTab] = useState('testExplorer');
 
   var searchApiUrl = import.meta.env.VITE_SEARCH_API_URL || "http://i3tiny1.local:7020/wikipedia/_search";
   if (import.meta.env.MODE === "development") {
     console.log("Development mode detected");
     console.log("Search API URL:", searchApiUrl);
   }
+  
   return (
-    <SearchProvider config={config}>
-      <div style={{ backgroundColor: "#F1F5F9", color: "#0F172A", padding: "20px" }}>
-        <h1 style={{ color: "#0EA5E9" }}>Search UI</h1>
-        <SearchBox
-          inputView={({ getInputProps }) => (
-            <input
-              {...getInputProps({
-                placeholder: "Search...",
-                style: {
-                  padding: "10px",
-                  border: "1px solid #0EA5E9",
-                  borderRadius: "5px",
-                  width: "100%",
-                },
-              })}
+    <div className="app-container">
+      <div className="app-header">
+        <h1>DocSearch Agent POC</h1>
+        <div className="app-tabs">
+          <button 
+            className={`tab-button ${activeTab === 'testExplorer' ? 'active' : ''}`}
+            onClick={() => setActiveTab('testExplorer')}
+          >
+            Test Explorer
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'search' ? 'active' : ''}`}
+            onClick={() => setActiveTab('search')}
+          >
+            Search UI
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'testExplorer' && (
+        <TestExplorer />
+      )}
+
+      {activeTab === 'search' && (
+        <SearchProvider config={config}>
+          <div style={{ backgroundColor: "#F1F5F9", color: "#0F172A", padding: "20px" }}>
+            <h2 style={{ color: "#0EA5E9" }}>Search UI</h2>
+            <SearchBox
+              inputView={({ getInputProps }) => (
+                <input
+                  {...getInputProps({
+                    placeholder: "Search...",
+                    style: {
+                      padding: "10px",
+                      border: "1px solid #0EA5E9",
+                      borderRadius: "5px",
+                      width: "100%",
+                    },
+                  })}
+                />
+              )}
             />
-          )}
-        />
-        <Results
-          resultView={({ result }) => (
-            <div
-              key={result.id?.raw || `result-${Math.random()}`} // Ensure a unique fallback key
-              style={{
-                border: "1px solid #0EA5E9",
-                borderRadius: "5px",
-                padding: "10px",
-                margin: "10px 0",
-              }}
-            >
-              <h2>{result.title.raw}</h2>
-              <p>{result.description.raw}</p>
-            </div>
-          )}
-        />
-        <Paging />
-      </div>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </SearchProvider>
+            <Results
+              resultView={({ result }) => (
+                <div
+                  key={result.id?.raw || `result-${Math.random()}`} // Ensure a unique fallback key
+                  style={{
+                    border: "1px solid #0EA5E9",
+                    borderRadius: "5px",
+                    padding: "10px",
+                    margin: "10px 0",
+                  }}
+                >
+                  <h2>{result.title.raw}</h2>
+                  <p>{result.description.raw}</p>
+                </div>
+              )}
+            />
+            <Paging />
+          </div>
+        </SearchProvider>
+      )}
+    </div>
   )
 }
 

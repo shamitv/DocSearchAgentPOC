@@ -6,3 +6,5 @@ autogenstudio
 autogen-ext[openai]
 autogen-agentchat
 chainlit
+flask
+flask-cors
