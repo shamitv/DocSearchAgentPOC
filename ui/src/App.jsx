@@ -50,6 +50,11 @@ const App = () => {
   const [generatedQueries, setGeneratedQueries] = useState([]);  // State for generated queries
   const [selectedQuery, setSelectedQuery] = useState(null);  // State for clicked query
   const [selectedResults, setSelectedResults] = useState([]);  // State for results of clicked query
+  // State for advanced agent interaction
+  const [agentQuestion, setAgentQuestion] = useState("");
+  const [maxIterations, setMaxIterations] = useState(5);
+  const [agentResponse, setAgentResponse] = useState(null);
+  const [agentLoading, setAgentLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState('search');  // Default to Search UI tab
 
@@ -77,6 +82,12 @@ const App = () => {
             onClick={() => setActiveTab('search')}
           >
             Search UI
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'agent' ? 'active' : ''}`}
+            onClick={() => setActiveTab('agent')}
+          >
+            Agent
           </button>
         </div>
       </div>
@@ -204,6 +215,61 @@ const App = () => {
             <Paging />
           </div>
         </SearchProvider>
+      )}
+      {activeTab === 'agent' && (
+        <div style={{ padding: '20px', backgroundColor: '#f9fafb', color: '#111827' }}>
+          <h2>Advanced Knowledge Agent</h2>
+          <div style={{ marginBottom: '10px' }}>
+            <input
+              type="text"
+              placeholder="Enter your question"
+              value={agentQuestion}
+              onChange={(e) => setAgentQuestion(e.target.value)}
+              style={{ padding: '8px', width: '60%', marginRight: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+            />
+            <input
+              type="number"
+              placeholder="Max iterations"
+              value={maxIterations}
+              onChange={(e) => setMaxIterations(Number(e.target.value))}
+              style={{ padding: '8px', width: '100px', marginRight: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+            />
+            <button
+              onClick={async () => {
+                if (!agentQuestion) return;
+                setAgentLoading(true);
+                try {
+                  const resp = await fetch(
+                    `${agentApiUrl}/api/agent`,
+                    {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ question: agentQuestion, max_iterations: maxIterations })
+                    }
+                  );
+                  const data = await resp.json();
+                  setAgentResponse(data);
+                } catch (err) {
+                  console.error('Error calling agent:', err);
+                  setAgentResponse({ error: err.toString() });
+                } finally {
+                  setAgentLoading(false);
+                }
+              }}
+              style={{ padding: '8px 16px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              {agentLoading ? 'Running...' : 'Run Agent'}
+            </button>
+          </div>
+          {agentResponse && (
+            <div style={{ marginTop: '20px' }}>
+              <h3>Agent Response:</h3>
+              <pre style={{ whiteSpace: 'pre-wrap', backgroundColor: '#fff', padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }}>
+                {JSON.stringify(agentResponse, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
