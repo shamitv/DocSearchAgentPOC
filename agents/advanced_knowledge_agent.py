@@ -194,7 +194,7 @@ Return ONLY a numbered list of search queries, one per line, with no explanation
     return json.dumps(queries)
 
 # Function to analyze search results and determine if the answer was found
-async def analyze_search_results(question: str, search_results: List[Dict], max_tokens: int = 1500) -> str:
+async def analyze_search_results(question: str, search_results: List[Dict], max_tokens: int = 30000) -> str:
     """
     Analyze search results to determine if they answer the original question.
     
