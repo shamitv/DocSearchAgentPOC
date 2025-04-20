@@ -479,6 +479,7 @@ async def analyze_search_results(question: str, search_results: List[Dict], max_
     individual_analyses = []
     answer_found = False
     answer_confidence = 0.0
+    response = None  # Ensure response is always defined
     # Analyze each result separately
     for idx, result in enumerate(search_results, start=1):
         if answer_found and answer_confidence >= 0.8:

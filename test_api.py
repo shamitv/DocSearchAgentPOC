@@ -254,17 +254,34 @@ def run_agent():
         return jsonify({"error": "Question parameter is required"}), 400
     try:
         search_results, agent_response = asyncio.run(run_agent_with_search_results(question, max_iterations))
-        # Ensure agent_response is JSON serializable
-        try:
-            json.dumps(agent_response)
-        except TypeError:
-            if hasattr(agent_response, 'content'):
-                agent_response = str(agent_response.content)
-            else:
-                agent_response = str(agent_response)
+        # Make agent_response JSON serializable and more helpful
+        def extract_agent_response(resp):
+            # If it's a TaskResult/messages structure, extract the most relevant content
+            if hasattr(resp, 'messages') and isinstance(resp.messages, list):
+                # Find the last assistant message with content
+                for msg in reversed(resp.messages):
+                    if hasattr(msg, 'content') and msg.content:
+                        return msg.content
+                # Fallback: return string of first message
+                if resp.messages:
+                    return str(resp.messages[0])
+            # If it has 'content' directly
+            if hasattr(resp, 'content'):
+                return resp.content
+            # If it's a list of messages
+            if isinstance(resp, list):
+                for msg in reversed(resp):
+                    if hasattr(msg, 'content') and msg.content:
+                        return msg.content
+            # Fallback: try to serialize or str
+            try:
+                return json.loads(resp)
+            except Exception:
+                return str(resp)
+        agent_response_clean = extract_agent_response(agent_response)
         return jsonify({
             "search_results": search_results,
-            "agent_response": agent_response
+            "agent_response": agent_response_clean
         })
     except Exception as e:
         logger.error(f"Error running agent: {str(e)}")
