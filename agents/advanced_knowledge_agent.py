@@ -6,13 +6,15 @@ import os
 import asyncio
 import json
 import time
-import logging
+import re
 from typing import List, Dict, Any, Optional
+import sqlite3
+from datetime import datetime
 
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from utils import EnvLoader, LoggerConfig, ElasticsearchClient, search_knowledge_base as utils_search_knowledge_base
+from utils import EnvLoader, LoggerConfig, ElasticsearchClient, search_knowledge_base as utils_search_knowledge_base, generate_run_id
 
 # Setup logging and obtain logger instance
 logger = LoggerConfig.configure_logging()
@@ -30,6 +32,246 @@ except Exception as e:
     logger.error(f"Failed to initialize Elasticsearch client: {str(e)}")
     raise
 
+# SQLite DB initialization
+DB_PATH = os.getenv('INTERMEDIATE_DB_PATH', 'intermediate_results.db')
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+cursor = conn.cursor()
+
+# Create tables if they don't exist
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS runs (
+    id TEXT PRIMARY KEY,
+    question TEXT,
+    start_time TEXT
+);
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS query_generations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT,
+    iteration INTEGER,
+    timestamp TEXT,
+    prompt TEXT,
+    response TEXT
+);
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS search_queries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT,
+    iteration INTEGER,
+    query TEXT,
+    timestamp TEXT
+);
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS search_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT,
+    iteration INTEGER,
+    query TEXT,
+    results TEXT,
+    timestamp TEXT
+);
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS analysis_prompts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT,
+    iteration INTEGER,
+    timestamp TEXT,
+    prompt TEXT
+);
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS analysis_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT,
+    iteration INTEGER,
+    result_index INTEGER,
+    timestamp TEXT,
+    response TEXT
+);
+''')
+
+# Add tables for LLM metrics
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS query_llm_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT,
+    iteration INTEGER,
+    timestamp TEXT,
+    model_name TEXT,
+    execution_time_seconds REAL,
+    prompt_tokens INTEGER,
+    completion_tokens INTEGER,
+    total_tokens INTEGER,
+    raw_prompt TEXT,
+    raw_content TEXT,
+    error_message TEXT
+);
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS analysis_llm_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT,
+    iteration INTEGER,
+    result_index INTEGER,
+    timestamp TEXT,
+    model_name TEXT,
+    execution_time_seconds REAL,
+    prompt_tokens INTEGER,
+    completion_tokens INTEGER,
+    total_tokens INTEGER,
+    raw_prompt TEXT,
+    raw_content TEXT,
+    error_message TEXT
+);
+''')
+
+conn.commit()
+
+# Logging helpers
+
+def log_run_start(question: str) -> str:
+    # Generate a random string ID for this run
+    run_id = generate_run_id()
+    ts = datetime.utcnow().isoformat()
+    cursor.execute(
+        'INSERT INTO runs (id, question, start_time) VALUES (?, ?, ?)',
+        (run_id, question, ts)
+    )
+    conn.commit()
+    return run_id
+
+def log_llm_metrics(response, start_time, model_name="Unknown", is_query=True, run_id=None, iteration=None, result_index=None, raw_prompt=None):
+    """
+    Log metrics from an LLM response including tokens and execution time.
+    Also stores the metrics in the database.
+    
+    Args:
+        response: The LLM response object
+        start_time: The start time of the LLM call
+        model_name: Name of the model used
+        is_query: Whether this is a query generation (True) or analysis (False)
+        run_id: Current run ID for database logging
+        iteration: Current iteration number for database logging
+        result_index: Result index for analysis operations (None for query operations)
+        raw_prompt: The raw text of the prompt that was sent to the LLM
+    """
+    elapsed_time = time.time() - start_time
+    operation = "Query generation" if is_query else "Result analysis"
+    
+    # Log execution time
+    logger.info(f"{operation} execution time: {elapsed_time:.2f} seconds")
+    
+    # Initialize metrics with defaults
+    prompt_tokens = None
+    completion_tokens = None
+    total_tokens = None
+    error_message = None
+    raw_content = None
+    
+    # Try to extract token information if available in the response
+    try:
+        # Extract raw content for logging
+        if hasattr(response, 'content'):
+            raw_content = str(response.content)[:1000]  # Limit size for storage
+        
+        if hasattr(response, 'usage'):
+            prompt_tokens = response.usage.prompt_tokens
+            completion_tokens = response.usage.completion_tokens
+            total_tokens = response.usage.total_tokens
+            logger.info(f"{operation} token usage - Input: {prompt_tokens}, Output: {completion_tokens}, Total: {total_tokens}")
+        else:
+            logger.info(f"{operation} completed, but token usage information not available")
+            error_message = "Token usage information not available"
+    except Exception as e:
+        error_message = str(e)
+        logger.warning(f"Could not extract token usage information: {str(e)}")
+    
+    # Store in database if run_id is provided
+    if run_id is not None:
+        ts = datetime.utcnow().isoformat()
+        
+        try:
+            if is_query:
+                # Store query metrics
+                cursor.execute('''
+                INSERT INTO query_llm_metrics 
+                (run_id, iteration, timestamp, model_name, execution_time_seconds, 
+                prompt_tokens, completion_tokens, total_tokens, raw_prompt, raw_content, error_message)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', 
+                (run_id, iteration, ts, model_name, elapsed_time, 
+                prompt_tokens, completion_tokens, total_tokens, raw_prompt, raw_content, error_message))
+            else:
+                # Store analysis metrics
+                cursor.execute('''
+                INSERT INTO analysis_llm_metrics 
+                (run_id, iteration, result_index, timestamp, model_name, execution_time_seconds, 
+                prompt_tokens, completion_tokens, total_tokens, raw_prompt, raw_content, error_message)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (run_id, iteration, result_index, ts, model_name, elapsed_time,
+                prompt_tokens, completion_tokens, total_tokens, raw_prompt, raw_content, error_message))
+            
+            conn.commit()
+            logger.info(f"Logged {operation} metrics to database")
+        except Exception as e:
+            logger.error(f"Failed to log {operation} metrics to database: {str(e)}")
+
+def log_query_generation(run_id: int, iteration: int, prompt: str, response: str):
+    ts = datetime.utcnow().isoformat()
+    cursor.execute(
+        'INSERT INTO query_generations (run_id, iteration, timestamp, prompt, response) VALUES (?, ?, ?, ?, ?)',
+        (run_id, iteration, ts, prompt, response)
+    )
+    conn.commit()
+
+
+def log_search_query(run_id: int, iteration: int, query: str):
+    ts = datetime.utcnow().isoformat()
+    # Insert run_id, iteration, query, timestamp into search_queries (4 placeholders)
+    cursor.execute(
+        'INSERT INTO search_queries (run_id, iteration, query, timestamp) VALUES (?, ?, ?, ?)',
+        (run_id, iteration, query, ts)
+    )
+    conn.commit()
+
+
+def log_search_result(run_id: int, iteration: int, query: str, results: str):
+    ts = datetime.utcnow().isoformat()
+    cursor.execute(
+        'INSERT INTO search_results (run_id, iteration, query, results, timestamp) VALUES (?, ?, ?, ?, ?)',
+        (run_id, iteration, query, results, ts)
+    )
+    conn.commit()
+
+
+def log_analysis_prompt(run_id: int, iteration: int, result_index: int, prompt: str):
+    ts = datetime.utcnow().isoformat()
+    cursor.execute(
+        'INSERT INTO analysis_prompts (run_id, iteration, result_index, timestamp, prompt) VALUES (?, ?, ?, ?, ?)',
+        (run_id, iteration, result_index, ts, prompt)
+    )
+    conn.commit()
+
+
+def log_analysis_result(run_id: int, iteration: int, result_index: int, response: str):
+    ts = datetime.utcnow().isoformat()
+    cursor.execute(
+        'INSERT INTO analysis_results (run_id, iteration, result_index, timestamp, response) VALUES (?, ?, ?, ?, ?)',
+        (run_id, iteration, result_index, ts, response)
+    )
+    conn.commit()
+
 # Define search function that returns structured data for better analysis
 async def search_knowledge_base(query: str, max_results: int = 5) -> str:
     """
@@ -40,7 +282,8 @@ async def search_knowledge_base(query: str, max_results: int = 5) -> str:
 
 # Function to generate multiple search queries
 async def generate_search_queries(question: str, previous_queries: List[str] = None, 
-                                 search_results: List[Dict] = None, num_queries: int = 5) -> str:
+                                 search_results: List[Dict] = None, num_queries: int = 5,
+                                 run_id: str = None, iteration: int = None) -> str:
     """
     Generate multiple search queries based on a question and optionally previous search results
     using an LLM to think of useful queries.
@@ -50,6 +293,8 @@ async def generate_search_queries(question: str, previous_queries: List[str] = N
         previous_queries: List of previously tried queries (optional)
         search_results: List of previous search results (optional)
         num_queries: Number of queries to generate
+        run_id: Current run ID for database logging
+        iteration: Current iteration for database logging
         
     Returns:
         JSON string containing new search queries
@@ -119,6 +364,7 @@ Return ONLY a numbered list of search queries, one per line, with no explanation
         
         # Call the LLM to generate queries
         logger.info("Calling LLM to generate search queries")
+        llm_call_start_time = time.time()
         try:
             response = await query_model_client.create(
                 messages=[
@@ -126,9 +372,16 @@ Return ONLY a numbered list of search queries, one per line, with no explanation
                     UserMessage(content=prompt, source="user")
                 ]
             )
+            
+            # Log details about the LLM response including token counts
+            log_llm_metrics(response, llm_call_start_time, 
+                           model_name=getattr(query_model_client, 'model_name', getattr(query_model_client, 'model', 'Unknown')), 
+                           is_query=True, run_id=run_id, iteration=iteration, raw_prompt=prompt)
+            
         except Exception as e:
             logger.error(f"Error calling LLM: {str(e)}", exc_info=True)
             raise
+        
         # Process the response to extract queries
         generated_text = response.content
         if isinstance(generated_text, list):
@@ -168,9 +421,9 @@ Return ONLY a numbered list of search queries, one per line, with no explanation
                 queries = [
                     question,
                     f"{question} facts",
-                    f"{question} details",
-                    f"{question} when",
-                    f"{question} who"
+                    f"{question} history",
+                    f"{question} date",
+                    f"{question} details"
                 ]
             
             # Limit to requested number
@@ -193,209 +446,119 @@ Return ONLY a numbered list of search queries, one per line, with no explanation
     
     return json.dumps(queries)
 
-# Function to analyze search results and determine if the answer was found
-async def analyze_search_results(question: str, search_results: List[Dict], max_tokens: int = 30000) -> str:
+async def analyze_search_results(question: str, search_results: List[Dict], max_tokens: int = 30000, 
+                              run_id: str = None, iteration: int = None) -> str:
     """
-    Analyze search results to determine if they answer the original question.
+    Analyze search results to determine if they contain an answer to the question.
     
     Args:
-        question: The original question
+        question: The question to answer
         search_results: List of search results to analyze
-        max_tokens: Maximum tokens to include in prompt
+        max_tokens: Maximum tokens to use for analysis
+        run_id: Current run ID for database logging
+        iteration: Current iteration for database logging
         
     Returns:
-        JSON string with analysis results including if answer was found and the answer itself
+        JSON string containing analysis results
     """
-    logger.info(f"Analyzing search results for question: '{question}'")
-    logger.info(f"Number of search results to analyze: {len(search_results)}")
-    start_time = time.time()
-    
     if not search_results:
-        logger.warning("No search results to analyze")
         return json.dumps({
             "answer_found": False,
             "answer": None,
             "missing_information": "No search results available to analyze",
             "confidence": 0.0,
-            "supporting_evidence": []
+            "supporting_evidence": [],
+            "reasoning": "",
+            "individual_results": []
         })
-    
-    # Format search results for the prompt
-    formatted_results = ""
-    truncated_results = search_results[:10]  # Limit to 10 results to keep prompt size manageable
-    
-    for i, result in enumerate(truncated_results):
+
+    individual_analyses = []
+    answer_found = False
+    answer_confidence = 0.0
+    # Analyze each result separately
+    for idx, result in enumerate(search_results, start=1):
+        if answer_found and answer_confidence >= 0.8:
+            break  # Skip analysis for the rest if answer already found with high confidence
         title = result.get("title", "No title")
         content = result.get("content", "No content")
-        score = result.get("score", 0)
-        
-        # Truncate content if very long to avoid excessive token usage
-        content_preview = content
-        if len(content) > max_tokens // len(truncated_results):
-            content_preview = content[:max_tokens // len(truncated_results)] + "..."
-            
-        formatted_results += f"RESULT {i+1} (score: {score}):\n"
-        formatted_results += f"TITLE: {title}\n"
-        formatted_results += f"CONTENT: {content_preview}\n\n"
-    
-    # Construct a prompt for the LLM to analyze search results
-    prompt = f"""You are an expert research analyst. Given a question and search results, your task is to:
-1. Analyze if the search results contain an answer to the question
-2. Extract and synthesize the answer if found
-3. Identify what information is missing if the answer isn't complete
-4. Rate your confidence in the answer (0.0-1.0)
-
+        prompt = f"""You are a search result analysis assistant. Given a question and a single search result, determine if this result answers the question.
 QUESTION: {question}
 
-SEARCH RESULTS:
-{formatted_results}
+RESULT:
+TITLE: {title}
+CONTENT: {content}
 
-Provide your analysis in the following structured format:
-1. Answer found (yes/no): Based on whether the search results contain sufficient information to answer the question
-2. Answer (if found): A comprehensive answer synthesized from the search results
-3. Missing information (if any): What relevant information is missing from the search results
-4. Confidence score (0.0-1.0): How confident you are in the answer based on the search results
-5. Supporting evidence: List the specific results (by their number) that support your answer
-6. Reasoning: Brief explanation of your analysis
-
-FORMAT YOUR RESPONSE AS A JSON OBJECT with the following keys: 
-"answer_found" (boolean),
-"answer" (string or null),
-"missing_information" (string or null), 
-"confidence" (float between 0.0 and 1.0),
-"supporting_evidence" (array of result numbers),
-"reasoning" (string)
+Respond in JSON with keys:
+- answer_found (boolean)
+- answer (string or null)
+- confidence (float between 0.0 and 1.0)
+- reasoning (string)
 """
-    
-    try:
-        # Call the LLM to analyze the search results
-        logger.info("Calling LLM to analyze search results")
-        
-        # Use the analysis_model_client to call the LLM
-        response = await analysis_model_client.create(
-            messages=[
-                SystemMessage(content="You are a search result analysis assistant that provides accurate, factual JSON responses."),
-                UserMessage(content=prompt, source="user")
-            ]
-        )
-        
-        # Extract the LLM's response
-        analysis_text = response.content
-        logger.info("Analysis response received from LLM")
-        
+        start_time = time.time()
         try:
-            # Try to parse the LLM's response as JSON
-            # The response might already be in JSON format
-            if isinstance(analysis_text, str):
-                # If it's a string, try to parse it
-                # First, try to extract JSON if it's wrapped in markdown code blocks
-                if "```json" in analysis_text:
-                    json_part = analysis_text.split("```json")[1].split("```")[0].strip()
-                    analysis = json.loads(json_part)
-                elif "```" in analysis_text:
-                    json_part = analysis_text.split("```")[1].split("```")[0].strip()
-                    analysis = json.loads(json_part)
-                else:
-                    # Try to parse the whole text as JSON
-                    analysis = json.loads(analysis_text)
-            else:
-                # If it's not a string (e.g., it might be a dict already)
-                analysis = analysis_text
-                
-            # Ensure all required fields are present
-            required_fields = ["answer_found", "answer", "missing_information", "confidence", 
-                             "supporting_evidence", "reasoning"]
-            for field in required_fields:
-                if field not in analysis:
-                    # Add missing field with default value
-                    if field == "answer_found":
-                        analysis[field] = False
-                    elif field == "confidence":
-                        analysis[field] = 0.0
-                    elif field == "supporting_evidence":
-                        analysis[field] = []
-                    else:
-                        analysis[field] = None
-            
-            # Ensure supporting_evidence is a list of integers
-            if not isinstance(analysis["supporting_evidence"], list):
-                analysis["supporting_evidence"] = []
-            else:
-                # Convert any string numbers to integers
-                analysis["supporting_evidence"] = [
-                    int(ev) if isinstance(ev, str) and ev.isdigit() else ev 
-                    for ev in analysis["supporting_evidence"]
+            response = await analysis_model_client.create(
+                messages=[
+                    SystemMessage(content="You are a search result analysis assistant that provides concise JSON outputs."),
+                    UserMessage(content=prompt, source="user")
                 ]
-                
-            # Ensure confidence is a float between 0 and 1
-            try:
-                analysis["confidence"] = float(analysis["confidence"])
-                if analysis["confidence"] < 0 or analysis["confidence"] > 1:
-                    analysis["confidence"] = max(0, min(1, analysis["confidence"]))
-            except (ValueError, TypeError):
-                analysis["confidence"] = 0.0
-                
-        except (json.JSONDecodeError, ValueError, KeyError) as e:
-            logger.error(f"Failed to parse LLM response as JSON: {str(e)}")
-            logger.error(f"Raw LLM response: {analysis_text}")
-            
-            # Create a fallback analysis based on what might be in the text
-            answer_found = "yes" in analysis_text.lower() and "answer found: yes" in analysis_text.lower()
-            
-            # Try to extract an answer if one was found
-            answer = None
-            if answer_found:
-                # Look for patterns that might indicate the start of an answer
-                patterns = ["answer:", "answer is:", "the answer is:"]
-                for pattern in patterns:
-                    if pattern in analysis_text.lower():
-                        answer_part = analysis_text.lower().split(pattern)[1].split("\n")[0].strip()
-                        if answer_part:
-                            answer = answer_part
-                            break
-            
-            analysis = {
-                "answer_found": answer_found,
-                "answer": answer,
-                "missing_information": "Unable to extract missing information from LLM response",
-                "confidence": 0.5 if answer_found else 0.0,
-                "supporting_evidence": [],
-                "reasoning": "Error parsing LLM response. This is a fallback analysis."
-            }
-    
-    except Exception as e:
-        logger.error(f"Error analyzing search results with LLM: {str(e)}")
-        # Create a fallback analysis if the LLM call fails
-        analysis = {
+            )
+            raw_content = response.content
+            if isinstance(raw_content, str):
+                raw_content = raw_content.strip()
+                match = re.search(r"```json(.*?)```", raw_content, re.DOTALL)
+                if match:
+                    json_str = match.group(1).strip()
+                else:
+                    match = re.search(r"({[\s\S]*})", raw_content)
+                    if match:
+                        json_str = match.group(1)
+                    else:
+                        json_str = raw_content
+                analysis = json.loads(json_str)
+            else:
+                analysis = json.loads(response.content)
+        except Exception:
+            analysis = {"answer_found": False, "answer": None, "confidence": 0.0, "reasoning": "Failed to analyze via LLM."}
+            if isinstance(content, str) and "answer is" in content.lower():
+                part = content.lower().split("answer is", 1)[1].strip()
+                answer_text = part.rstrip(".?!")
+                analysis = {
+                    "answer_found": True,
+                    "answer": answer_text,
+                    "confidence": 0.5,
+                    "reasoning": "Heuristic fallback match extracted answer."
+                }
+        log_llm_metrics(response, start_time, model_name="gpt-4o-mini", is_query=False, run_id=run_id, iteration=iteration, raw_prompt=prompt)
+        individual_analyses.append({
+            "result_index": idx,
+            "result": {"title": title, "content": content, "score": result.get("score")},
+            "analysis": analysis
+        })
+        if analysis.get("answer_found") and analysis.get("confidence", 0.0) >= 0.8:
+            answer_found = True
+            answer_confidence = analysis.get("confidence", 0.0)
+
+    # Aggregate individual analyses: pick highest-confidence positive
+    positive = [a for a in individual_analyses if a["analysis"].get("answer_found")]
+    if positive:
+        best = max(positive, key=lambda a: a["analysis"]["confidence"])
+        overall = {
+            "answer_found": True,
+            "answer": best["analysis"].get("answer"),
+            "confidence": best["analysis"].get("confidence"),
+            "supporting_evidence": [search_results[best["result_index"]-1]],
+            "reasoning": best["analysis"].get("reasoning")
+        }
+    else:
+        overall = {
             "answer_found": False,
             "answer": None,
-            "missing_information": f"Error analyzing search results: {str(e)}",
             "confidence": 0.0,
             "supporting_evidence": [],
-            "reasoning": "LLM analysis failed due to an error."
+            "reasoning": "No individual result contained an answer."
         }
-    
-    # Add reference to actual supporting evidence objects
-    if analysis.get("supporting_evidence"):
-        # Convert supporting evidence numbers to actual result objects
-        evidence_objects = []
-        for evidence_num in analysis["supporting_evidence"]:
-            try:
-                # Evidence numbers are 1-indexed in the prompt
-                idx = int(evidence_num) - 1
-                if 0 <= idx < len(search_results):
-                    evidence_objects.append(search_results[idx])
-            except (ValueError, TypeError):
-                continue
-                
-        # Replace the original list of numbers with the actual evidence objects
-        analysis["supporting_evidence"] = evidence_objects
-    
-    elapsed_time = time.time() - start_time
-    logger.info(f"Analysis completed in {elapsed_time:.2f} seconds")
-    logger.info(f"Analysis result - answer found: {analysis.get('answer_found', False)}")
-    
-    return json.dumps(analysis)
+    overall["individual_results"] = individual_analyses
+    return json.dumps(overall)
 
 # Define separate model clients for different tasks
 logger.info("Initializing OpenAI clients for different tasks")
@@ -488,6 +651,8 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
     answer_found = False
     final_answer = None
     
+    run_id = log_run_start(question)
+    
     while iterations < max_iterations and not answer_found:
         iterations += 1
         logger.info(f"Starting iteration {iterations}/{max_iterations}")
@@ -496,14 +661,16 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
         if iterations == 1:
             # Initial queries
             logger.info("Generating initial queries")
-            queries_json = await generate_search_queries(question)
+            queries_json = await generate_search_queries(question, run_id=run_id, iteration=iterations)
         else:
             # Refined queries based on previous results
             logger.info("Generating refined queries based on previous results")
-            queries_json = await generate_search_queries(question, all_queries, all_results)
+            queries_json = await generate_search_queries(question, all_queries, all_results, run_id=run_id, iteration=iterations)
             
         queries = json.loads(queries_json)
         all_queries.extend(queries)
+        
+        log_query_generation(run_id, iterations, question, queries_json)
         
         # Execute searches
         logger.info(f"Executing {len(queries)} searches")
@@ -518,11 +685,14 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
                     "query": query,
                     "results": results.get("results", [])
                 })
+                
+                log_search_query(run_id, iterations, query)
+                log_search_result(run_id, iterations, query, results_json)
         
         # Analyze results to see if we found an answer
         if iteration_results:
             logger.info(f"Analyzing {len(iteration_results)} search results")
-            analysis_json = await analyze_search_results(question, iteration_results)
+            analysis_json = await analyze_search_results(question, iteration_results, run_id=run_id, iteration=iterations)
             analysis = json.loads(analysis_json)
             
             if analysis.get("answer_found", False):
@@ -552,12 +722,13 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
 # Update the main function to ensure identified queries are executed immediately
 async def main() -> None:
     # You can replace the task with any question you want to ask
-    task = "How much reciprocal tariffs were put on China by Trump?"
+    #task = "How much reciprocal tariffs were put on China by Trump?"
+    task = "Which schools are present in Trsat"
     logger.info(f"Starting agent with task: {task}")
     try:
         # First use the answer_from_knowledge_base function to get search results
         logger.info("Starting knowledge base search process")
-        search_results = await answer_from_knowledge_base(task)
+        search_results = await answer_from_knowledge_base(task,1)
 
         # Check if additional queries were identified but not executed
         if search_results.get("final_answer") is None and search_results.get("search_history"):

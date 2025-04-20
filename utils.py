@@ -4,6 +4,8 @@ import logging
 import time
 import json
 import sys
+import random
+import string
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 
@@ -69,6 +71,13 @@ class ElasticsearchClient:
         except Exception as e:
             logging.error(f"Error connecting to Elasticsearch: {str(e)}")
             raise
+
+def generate_run_id(length: int = 20) -> str:
+    """
+    Generate a random alphanumeric string of given length for use as a run primary key.
+    """
+    chars = string.ascii_letters + string.digits
+    return ''.join(random.choices(chars, k=length))
 
 def search_knowledge_base(query, max_results=5):
     """

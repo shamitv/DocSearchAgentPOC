@@ -1,5 +1,4 @@
-import React from "react";
-import { useState } from 'react'
+import React, { useState, useEffect } from "react";
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
@@ -65,7 +64,29 @@ const App = () => {
     console.log("Search API URL:", searchApiUrl);
     console.log("Agent API URL:", agentApiUrl);
   }
-  
+
+  const [runs, setRuns] = useState([]);
+  const [selectedRunId, setSelectedRunId] = useState(null);
+  const [runDetails, setRunDetails] = useState({});
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetch('/api/runs')
+        .then(res => res.json())
+        .then(data => setRuns(data))
+        .catch(err => console.error('Error fetching runs:', err));
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (selectedRunId) {
+      fetch(`/api/runs/${selectedRunId}`)
+        .then(res => res.json())
+        .then(data => setRunDetails(data.details))
+        .catch(err => console.error('Error fetching run details:', err));
+    }
+  }, [selectedRunId]);
+
   return (
     <div className="app-container">
       <div className="app-header">
@@ -88,6 +109,9 @@ const App = () => {
             onClick={() => setActiveTab('agent')}
           >
             Agent
+          </button>
+          <button className={`tab-button ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+            History
           </button>
         </div>
       </div>
@@ -299,8 +323,68 @@ const App = () => {
           )}
         </div>
       )}
+      {activeTab === 'history' && (
+        <div style={{ display: 'flex', padding: '20px' }}>
+          <div style={{ width: '30%', borderRight: '1px solid #ccc', paddingRight: '10px' }}>
+            <h2>Runs</h2>
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {runs.map(r => (
+                <li key={r.id} style={{ marginBottom: '10px', cursor: 'pointer', color: selectedRunId===r.id? '#0EA5E9':'#111' }} onClick={() => setSelectedRunId(r.id)}>
+                  {new Date(r.start_time).toLocaleString()} - {r.question}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div style={{ width: '65%', paddingLeft: '10px' }}>
+            <h2>Details</h2>
+            {selectedRunId ? (
+              <>
+                {Object.entries(runDetails).map(([table, entries]) => {
+                  // Special rendering for LLM metrics tables
+                  if (table === 'query_llm_metrics' || table === 'analysis_llm_metrics') {
+                    return (
+                      <div key={table}>
+                        <h3>{table.replace(/_/g, ' ').toUpperCase()}</h3>
+                        {entries.length === 0 ? <p>No entries</p> : entries.map((entry, idx) => (
+                          <div key={idx} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', marginBottom: '16px', padding: '10px' }}>
+                            <div><strong>Timestamp:</strong> {entry.timestamp}</div>
+                            <div><strong>Model:</strong> {entry.model_name}</div>
+                            <div><strong>Execution Time:</strong> {entry.execution_time_seconds?.toFixed(2)}s</div>
+                            <div><strong>Prompt Tokens:</strong> {entry.prompt_tokens}</div>
+                            <div><strong>Completion Tokens:</strong> {entry.completion_tokens}</div>
+                            <div><strong>Total Tokens:</strong> {entry.total_tokens}</div>
+                            {entry.result_index !== undefined && <div><strong>Result Index:</strong> {entry.result_index}</div>}
+                            <details style={{ marginTop: '8px' }}>
+                              <summary>Prompt</summary>
+                              <pre style={{ background: '#f3f4f6', padding: '8px', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>{entry.raw_prompt}</pre>
+                            </details>
+                            <details style={{ marginTop: '8px' }}>
+                              <summary>LLM Response</summary>
+                              <pre style={{ background: '#f3f4f6', padding: '8px', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>{entry.raw_content}</pre>
+                            </details>
+                            {entry.error_message && <div style={{ color: 'red' }}><strong>Error:</strong> {entry.error_message}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                  // Default rendering for other tables
+                  return (
+                    <div key={table}>
+                      <h3>{table}</h3>
+                      <pre style={{ background: '#f4f4f4', padding: '10px' }}>{JSON.stringify(entries, null, 2)}</pre>
+                    </div>
+                  );
+                })}
+              </>
+            ) : (
+              <p>Select a run to view details</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
-  )
-}
+  );
+};
 
-export default App
+export default App;

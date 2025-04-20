@@ -13,6 +13,7 @@ import logging
 from io import StringIO
 from contextlib import redirect_stdout
 import importlib
+import sqlite3
 
 # Import the search_knowledge_base function directly
 from utils import search_knowledge_base
@@ -25,6 +26,11 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# Initialize SQLite connection to intermediate results DB
+DB_PATH = os.getenv('INTERMEDIATE_DB_PATH', 'intermediate_results.db')
+db_conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+db_conn.row_factory = sqlite3.Row
 
 # Directories where test files are located
 TEST_DIRS = [
@@ -255,6 +261,84 @@ def run_agent():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+# Endpoint to list all runs
+@app.route('/api/runs', methods=['GET'])
+def list_runs():
+    """API endpoint to list all runs from intermediate_results.db"""
+    try:
+        cursor = db_conn.cursor()
+        cursor.execute('SELECT id, question, start_time FROM runs ORDER BY start_time DESC')
+        rows = cursor.fetchall()
+        runs = [dict(row) for row in rows]
+        return jsonify(runs)
+    except Exception as e:
+        logger.error(f"Error listing runs: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# Endpoint to get detailed logs for a specific run
+@app.route('/api/runs/<run_id>', methods=['GET'])
+def get_run_details(run_id):
+    """API endpoint to fetch all intermediate logs for a given run"""
+    try:
+        cursor = db_conn.cursor()
+        data = {}
+        tables = [
+            'query_generations', 'search_queries', 'search_results',
+            'analysis_prompts', 'analysis_results',
+            'query_llm_metrics', 'analysis_llm_metrics'
+        ]
+        for table in tables:
+            cursor.execute(f'SELECT * FROM {table} WHERE run_id = ? ORDER BY timestamp', (run_id,))
+            rows = cursor.fetchall()
+            data[table] = [dict(row) for row in rows]
+        return jsonify({"run_id": run_id, "details": data})
+    except Exception as e:
+        logger.error(f"Error fetching run details for {run_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# Simple UI to view runs and steps
+@app.route('/', methods=['GET'])
+def index():
+    """Serve a simple HTML UI to browse run history"""
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Run History Viewer</title>
+  <style>body{font-family:sans-serif;}#runs{width:30%;float:left;padding:10px;}#details{width:65%;float:right;padding:10px;}li{cursor:pointer;margin-bottom:5px;}pre{background:#f4f4f4;padding:10px;}</style>
+</head>
+<body>
+  <h1>Run History Viewer</h1>
+  <div id="runs"><h2>Runs</h2><ul id="runList"></ul></div>
+  <div id="details"><h2>Details</h2><div id="runDetails"></div></div>
+  <script>
+    async function fetchRuns(){
+      const res = await fetch('/api/runs');
+      const runs = await res.json();
+      const list = document.getElementById('runList');
+      list.innerHTML = '';
+      runs.forEach(r=>{
+        const li = document.createElement('li');
+        li.textContent = `${r.start_time} - ${r.question}`;
+        li.onclick = ()=>showDetails(r.id);
+        list.appendChild(li);
+      });
+    }
+    async function showDetails(id){
+      const res = await fetch(`/api/runs/${id}`);
+      const data = await res.json();
+      const container = document.getElementById('runDetails');
+      container.innerHTML = '<h3>Details for run ' + id + '</h3>';
+      for(const [table, entries] of Object.entries(data.details)){
+        container.innerHTML += `<h4>${table}</h4><pre>${JSON.stringify(entries, null, 2)}</pre>`;
+      }
+    }
+    fetchRuns();
+  </script>
+</body>
+</html>
+'''
 
 # Only for development/testing
 if __name__ == '__main__':
