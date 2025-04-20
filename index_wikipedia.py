@@ -33,8 +33,17 @@ def index_document(title, text, metadata):
     es.index(index=INDEX_NAME, id=document_id, document=document)
 
 def extract_plain_text(raw_text):
-    """Convert raw markup text to plain text."""
+    """Convert raw markup text to plain text, preserving template parameters."""
     wikicode = mwparserfromhell.parse(raw_text)
+    # Preserve templates content by replacing each template with its parameter key-value pairs
+    for template in wikicode.filter_templates():
+        params = []
+        for param in template.params:
+            name = str(param.name).strip()
+            value = str(param.value).strip()
+            params.append(f"{name}: {value}")
+        replacement = "\n".join(params)
+        wikicode.replace(template, replacement)
     return wikicode.strip_code()
 
 def index_documents_bulk(documents):
