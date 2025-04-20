@@ -6,6 +6,7 @@ from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
 import logging
 from utils import EnvLoader, LoggerConfig, ElasticsearchClient
+from index_wikipedia import process_dump
 
 # Configure logging
 LoggerConfig.configure_logging()
@@ -100,6 +101,15 @@ for filename, dump_date in dump_files:
             'url': file_url
         })
         logging.info(f"Indexed {filename} in ES as 'downloaded'.")
+
+        # Process downloaded dump and update status
+        try:
+            logging.info(f"Processing dump file: {local_path}...")
+            process_dump(local_path)
+            es.update(index=ES_DUMP_INDEX, id=es_id, body={'doc': {'status': 'processed'}})
+            logging.info(f"Updated {filename} in ES as 'processed'.")
+        except Exception as e:
+            logging.error(f"Failed to process dump {filename}: {e}")
     except requests.exceptions.RequestException as e:
         logging.error(f"Failed to download {file_url}: {e}")
     except Exception as e:
