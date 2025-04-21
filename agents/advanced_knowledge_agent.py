@@ -778,11 +778,7 @@ Please analyze these search results and provide a comprehensive answer to the qu
         logger.error(f"Error during agent execution: {str(e)}")
         return None, None
     finally:
-        logger.info("Closing model client connection")
-        await agent_model_client.close()
-        await query_model_client.close()
-        await analysis_model_client.close()
-        logger.info("Model client connection closed")
+        logger.info("Model client connection closed (no explicit close performed)")
 
 async def main() -> None:
     # You can replace the task with any question you want to ask
