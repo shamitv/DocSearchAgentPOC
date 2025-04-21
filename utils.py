@@ -165,3 +165,78 @@ def search_knowledge_base(query, max_results=5):
             "message": f"Error: {str(e)}",
             "results": []
         }
+
+# LLM Client Factory
+
+def get_llm_base_url(llm_type: str) -> str:
+    """
+    Returns the base URL for the LLM API depending on llm_type.
+    For 'local', returns VLLM_URL from env. For 'openai', returns None.
+    """
+    if llm_type == 'local':
+        return os.getenv("VLLM_URL")
+    return None
+
+def get_llm_client(llm_type: str, model: str = None):
+    """
+    Factory function to create an LLM client based on llm_type and model name only.
+    All other logic (API key, base_url, model_info) is handled internally.
+    If llm_type is 'local', delegates to get_local_llm_client.
+    """
+    if llm_type == 'openai':
+        from autogen_ext.models.openai import OpenAIChatCompletionClient
+        api_key = os.getenv("OPENAI_API_KEY")
+        return OpenAIChatCompletionClient(model=model, api_key=api_key)
+    elif llm_type == 'local':
+        return get_local_llm_client(model)
+    else:
+        raise ValueError(f"Unknown llm_type: {llm_type}")
+
+def get_local_llm_client(model: str = None):
+    """
+    Create a local LLM client (e.g., vLLM) using environment variables for base_url and model_info.
+    If model is None, query available models and pick the first one.
+    """
+    from autogen_ext.models.openai import OpenAIChatCompletionClient
+    from autogen_core.models import ModelInfo
+    from openai import OpenAI
+    import os
+    vllm_url = os.getenv("VLLM_URL")
+    api_key = os.getenv("VLLM_API_KEY", "NotRequired")
+    if vllm_url is None:
+        raise ValueError("VLLM_URL environment variable is not set.")
+    #Set model to None to force query available models
+    model = None
+    # If model is None, query the available models from the vLLM server
+    if model is None:
+        client = OpenAI(api_key="EMPTY", base_url=vllm_url)
+        models = client.models.list()
+        if not models.data:
+            raise RuntimeError("No models available from local LLM server.")
+        model = models.data[0].id
+    # Use a generic ModelInfo for vLLM
+    model_info = ModelInfo(
+        id=model,
+        object="model",
+        created=0,
+        owned_by="vllm",
+        root=model,
+        parent=None,
+        permission=[],
+        max_tokens=30000,
+        context_length=30000,
+        prompt_token_cost=0,
+        completion_token_cost=0,
+        function_calling=True,
+        json_output=True,
+        structured_output=True,
+        function_call_token_cost=0,
+        family="vllm",
+        vision=False,
+    )
+    return OpenAIChatCompletionClient(
+        model=model,
+        api_key=api_key,
+        base_url=vllm_url,
+        model_info=model_info,
+    )

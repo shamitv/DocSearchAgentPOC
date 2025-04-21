@@ -83,4 +83,18 @@ These images show how the agent generates search terms for a question and produc
 7. **(Optional) Start Elasticsearch:**
    - Use the provided `elastic/docker-compose.yml` to spin up Elasticsearch if not already running.
 
+## LLM_TYPE Environment Variable
+
+The `LLM_TYPE` variable in your `.env` file determines which LLM backend is used by the application:
+
+- `LLM_TYPE=openai` (default): Use the OpenAI API for language model completions.
+- `LLM_TYPE=local`: Use a local LLM server (such as vLLM) for completions. Make sure to set `VLLM_URL` accordingly.
+
+**Why:**
+This allows you to easily switch between cloud-based (OpenAI) and self-hosted (local/vLLM) LLMs without changing code. Set this variable to match your deployment or development environment.
+
+Example in `.env`:
+```
+LLM_TYPE=openai  # or 'local'
+```
 ---

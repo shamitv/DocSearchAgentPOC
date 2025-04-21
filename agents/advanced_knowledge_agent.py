@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from utils import EnvLoader, LoggerConfig, ElasticsearchClient, search_knowledge_base as utils_search_knowledge_base, generate_run_id
+from utils import EnvLoader, LoggerConfig, ElasticsearchClient, search_knowledge_base as utils_search_knowledge_base, generate_run_id, get_llm_client, get_llm_base_url
 
 # Setup logging and obtain logger instance
 logger = LoggerConfig.configure_logging()
@@ -569,30 +569,20 @@ Respond in JSON with keys:
     return json.dumps(overall)
 
 # Define separate model clients for different tasks
-logger.info("Initializing OpenAI clients for different tasks")
+logger.info("Initializing LLM clients for different tasks")
 try:
-    # Model for query generation - using a lighter model for this task
-    query_model_client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini",  # Lighter model for generating search queries
-        api_key=os.getenv("OPENAI_API_KEY"),
-    )
+    llm_type = os.getenv("LLM_TYPE", "openai")
+    # Model for query generation
+    query_model_client = get_llm_client(llm_type, "gpt-4o-mini")
     logger.info("Query generation model client initialized")
-    
-    # Model for analyzing search results - using a more capable model
-    analysis_model_client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini",  # More capable model for complex analysis
-        api_key=os.getenv("OPENAI_API_KEY"),
-    )
+    # Model for analyzing search results
+    analysis_model_client = get_llm_client(llm_type, "gpt-4o-mini")
     logger.info("Analysis model client initialized")
-    
     # Primary model for the agent's conversations
-    agent_model_client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini",  # Using a capable model for the assistant agent
-        api_key=os.getenv("OPENAI_API_KEY"),
-    )
+    agent_model_client = get_llm_client(llm_type, "gpt-4o-mini")
     logger.info("Agent model client initialized")
 except Exception as e:
-    logger.error(f"Error initializing OpenAI clients: {str(e)}")
+    logger.error(f"Error initializing LLM clients: {str(e)}")
     raise
 
 # Define the advanced knowledge agent
