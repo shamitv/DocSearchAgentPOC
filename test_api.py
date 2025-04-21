@@ -284,6 +284,7 @@ def run_agent():
             "agent_response": agent_response_clean
         })
     except Exception as e:
+        traceback.print_exc()
         logger.error(f"Error running agent: {str(e)}", exc_info=True)
         return jsonify({
             "error": str(e),
