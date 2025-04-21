@@ -1,3 +1,5 @@
+import traceback
+
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.ui import Console
 from autogen_ext.models.openai import OpenAIChatCompletionClient
@@ -523,6 +525,7 @@ Respond in JSON with keys:
             else:
                 analysis = json.loads(response.content)
         except Exception:
+            traceback.print_exc()
             analysis = {"answer_found": False, "answer": None, "confidence": 0.0, "reasoning": "Failed to analyze via LLM."}
             if isinstance(content, str) and "answer is" in content.lower():
                 part = content.lower().split("answer is", 1)[1].strip()
@@ -771,6 +774,7 @@ Please analyze these search results and provide a comprehensive answer to the qu
         logger.info("Agent task completed successfully")
         return search_results, agent_response
     except Exception as e:
+        traceback.print_exc()
         logger.error(f"Error during agent execution: {str(e)}")
         return None, None
     finally:
