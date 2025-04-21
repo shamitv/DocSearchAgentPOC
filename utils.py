@@ -177,25 +177,18 @@ def get_llm_base_url(llm_type: str) -> str:
         return os.getenv("VLLM_URL")
     return None
 
-def get_llm_client(llm_type: str, model: str):
+def get_llm_client(llm_type: str, model: str = None):
     """
     Factory function to create an LLM client based on llm_type and model name only.
     All other logic (API key, base_url, model_info) is handled internally.
+    If llm_type is 'local', delegates to get_local_llm_client.
     """
     if llm_type == 'openai':
         from autogen_ext.models.openai import OpenAIChatCompletionClient
         api_key = os.getenv("OPENAI_API_KEY")
         return OpenAIChatCompletionClient(model=model, api_key=api_key)
     elif llm_type == 'local':
-        from autogen_ext.models.openai import OpenAIChatCompletionClient
-        api_key = os.getenv("VLLM_API_KEY", "NotRequired")
-        base_url = os.getenv("VLLM_URL")
-        # Optionally, add model_info logic here if needed
-        return OpenAIChatCompletionClient(
-            model=model,
-            api_key=api_key,
-            base_url=base_url
-        )
+        return get_local_llm_client(model)
     else:
         raise ValueError(f"Unknown llm_type: {llm_type}")
 
