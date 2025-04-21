@@ -18,7 +18,6 @@ The agent flow is as follows:
 ### Agent Flow Illustration
 
 - ![Query Generation](docs/images/query_gen_screenshot_1.png)
-- ![Response Example 1](docs/images/response_screenshot_1.png)
 - ![Response Example 2](docs/images/response_screenshot_2.png)
 
 These images show how the agent generates search terms for a question and produces a final answer.
