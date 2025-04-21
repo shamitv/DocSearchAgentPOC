@@ -205,6 +205,8 @@ def get_local_llm_client(model: str = None):
     api_key = os.getenv("VLLM_API_KEY", "NotRequired")
     if vllm_url is None:
         raise ValueError("VLLM_URL environment variable is not set.")
+    #Set model to None to force query available models
+    model = None
     # If model is None, query the available models from the vLLM server
     if model is None:
         client = OpenAI(api_key="EMPTY", base_url=vllm_url)
