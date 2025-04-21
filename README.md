@@ -45,7 +45,7 @@ These images show how the agent generates search terms for a question and produc
 
 1. **Clone the repository:**
    ```sh
-   git clone <repo-url>
+   git clone https://github.com/shamitv/DocSearchAgentPOC.git
    cd DocSearchAgentPOC
    ```
 
@@ -71,11 +71,11 @@ These images show how the agent generates search terms for a question and produc
 
 5. **Run the backend:**
    ```sh
-   python app.py
+   python test_api.py
    ```
 
 6. **Run the UI:**
-   - In `ui` or `es-search-ui` folder:
+   - In `ui` folder:
      ```sh
      npm run dev
      ```
@@ -84,5 +84,3 @@ These images show how the agent generates search terms for a question and produc
    - Use the provided `elastic/docker-compose.yml` to spin up Elasticsearch if not already running.
 
 ---
-
-This README provides a comprehensive overview, objective, example, tech stack, and setup steps for your project.
