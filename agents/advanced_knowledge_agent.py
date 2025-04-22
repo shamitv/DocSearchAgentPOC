@@ -771,7 +771,7 @@ async def run_agent_with_search_results(task: str, max_iterations: int = 1):
                         "answer_found": analysis.get("answer_found"),
                         "answer": analysis.get("answer")
                     })
-
+        logger.info(f"Number of useful results considered for final analysis: {len(useful_results)}")
         # Create a new prompt with the filtered, useful results and their attributes
         enhanced_task = f"""
 Question: {task}
