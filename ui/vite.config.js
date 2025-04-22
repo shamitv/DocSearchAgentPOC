@@ -6,9 +6,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Proxy all /api calls to test_api.py Flask server for search and query endpoints
+      // Proxy all /api calls to FastAPI server for search and query endpoints
       '/api': {
-        target: 'http://localhost:5001',
+        target: 'http://localhost:8000',
         changeOrigin: true
         // no rewrite: backend routes handle /api/search, /api/queries, etc.
       }
