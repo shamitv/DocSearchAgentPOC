@@ -224,6 +224,9 @@ async def analyze_search_results(question: str, search_results: List[Dict], max_
             "individual_results": []
         })
 
+    # De-duplicate search results before analysis
+    search_results = dedupe_search_results(search_results)
+
     individual_analyses = []
     answer_found = False
     answer_confidence = 0.0
@@ -441,11 +444,12 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
                 log_search_result(cursor, conn, run_id, iterations, query, results_json)
         
         # Analyze results to see if we found an answer
-        if iteration_results:
-            logger.info(f"Analyzing {len(iteration_results)} search results")
-            analysis_json = await analyze_search_results(question, iteration_results, run_id=run_id, iteration=iterations)
+        # Flatten all results across all iterations for deduplication and analysis
+        all_flat_results = [item for iteration in all_results for item in iteration.get("results", [])]
+        if all_flat_results:
+            logger.info(f"Analyzing {len(all_flat_results)} search results (deduped across all iterations)")
+            analysis_json = await analyze_search_results(question, all_flat_results, run_id=run_id, iteration=iterations)
             analysis = json.loads(analysis_json)
-            
             if analysis.get("answer_found", False):
                 logger.info("Answer found!")
                 answer_found = True
@@ -548,6 +552,23 @@ Please analyze these search results and provide a comprehensive answer to the qu
         return None, None
     finally:
         logger.info("Model client connection closed (no explicit close performed)")
+
+def dedupe_search_results(results, key_fields=None):
+    """
+    Remove duplicate search results based on key fields (e.g., title and content).
+    Accepts a flat list of results (across all iterations).
+    Returns a list of unique results, preserving order.
+    """
+    if key_fields is None:
+        key_fields = ["title", "content"]
+    seen = set()
+    unique_results = []
+    for result in results:
+        key = tuple(result.get(field, "") for field in key_fields)
+        if key not in seen:
+            seen.add(key)
+            unique_results.append(result)
+    return unique_results
 
 async def main() -> None:
     # You can replace the task with any question you want to ask
