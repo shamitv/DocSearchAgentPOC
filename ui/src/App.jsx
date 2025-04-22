@@ -59,7 +59,7 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('search');  // Default to Search UI tab
 
   var searchApiUrl = import.meta.env.VITE_SEARCH_API_URL || "http://i3tiny1.local:7020/wikipedia/_search";
-  const agentApiUrl = import.meta.env.VITE_AGENT_API_URL || "http://localhost:5001";  // URL for agent API (generate queries)
+  const agentApiUrl = import.meta.env.VITE_AGENT_API_URL || "http://localhost:8000";  // URL for agent API (FastAPI)
   if (import.meta.env.MODE === "development") {
     console.log("Development mode detected");
     console.log("Search API URL:", searchApiUrl);
@@ -74,8 +74,11 @@ const App = () => {
     if (activeTab === 'history') {
       fetch('/api/runs')
         .then(res => res.json())
-        .then(data => setRuns(data))
-        .catch(err => console.error('Error fetching runs:', err));
+        .then(data => setRuns(Array.isArray(data) ? data : []))
+        .catch(err => {
+          console.error('Error fetching runs:', err);
+          setRuns([]);
+        });
     }
   }, [activeTab]);
 
@@ -309,7 +312,7 @@ const App = () => {
                             style={{ background: '#f3f4f6', padding: '12px', borderRadius: '4px' }}
                             dangerouslySetInnerHTML={{
                               __html: marked.parse(
-                                agentResponse.agent_response
+                                String(agentResponse.agent_response ?? "")
                               )
                             }}
                           />
@@ -345,7 +348,7 @@ const App = () => {
                               __html: marked.parse(
                                 Array.isArray(agentResponse.final_answer.answer)
                                   ? agentResponse.final_answer.answer.join('\n')
-                                  : agentResponse.final_answer.answer
+                                  : String(agentResponse.final_answer.answer ?? "")
                               )
                             }}
                           />

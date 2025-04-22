@@ -17,6 +17,11 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from utils import EnvLoader, LoggerConfig, ElasticsearchClient, search_knowledge_base as utils_search_knowledge_base, generate_run_id, get_llm_client, get_llm_base_url
+from agents.metrics_logger import log_llm_metrics, init_metrics_db
+from agents.db_init import init_main_db
+from agents.db_logging import (
+    log_run_start, log_query_generation, log_search_query, log_search_result, log_analysis_prompt, log_analysis_result
+)
 
 # Setup logging and obtain logger instance
 logger = LoggerConfig.configure_logging()
@@ -36,247 +41,7 @@ except Exception as e:
 
 # SQLite DB initialization
 DB_PATH = os.getenv('INTERMEDIATE_DB_PATH', 'intermediate_results.db')
-conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-cursor = conn.cursor()
-
-# Create tables if they don't exist
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS runs (
-    id TEXT PRIMARY KEY,
-    question TEXT,
-    start_time TEXT
-);
-''')
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS query_generations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id TEXT,
-    iteration INTEGER,
-    timestamp TEXT,
-    prompt TEXT,
-    response TEXT
-);
-''')
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS search_queries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id TEXT,
-    iteration INTEGER,
-    query TEXT,
-    timestamp TEXT
-);
-''')
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS search_results (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id TEXT,
-    iteration INTEGER,
-    query TEXT,
-    results TEXT,
-    timestamp TEXT
-);
-''')
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS analysis_prompts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id TEXT,
-    iteration INTEGER,
-    timestamp TEXT,
-    prompt TEXT
-);
-''')
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS analysis_results (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id TEXT,
-    iteration INTEGER,
-    result_index INTEGER,
-    timestamp TEXT,
-    response TEXT
-);
-''')
-
-# Add tables for LLM metrics
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS query_llm_metrics (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id TEXT,
-    iteration INTEGER,
-    timestamp TEXT,
-    model_name TEXT,
-    execution_time_seconds REAL,
-    prompt_tokens INTEGER,
-    completion_tokens INTEGER,
-    total_tokens INTEGER,
-    raw_prompt TEXT,
-    raw_content TEXT,
-    error_message TEXT
-);
-''')
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS analysis_llm_metrics (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id TEXT,
-    iteration INTEGER,
-    result_index INTEGER,
-    timestamp TEXT,
-    model_name TEXT,
-    execution_time_seconds REAL,
-    prompt_tokens INTEGER,
-    completion_tokens INTEGER,
-    total_tokens INTEGER,
-    raw_prompt TEXT,
-    raw_content TEXT,
-    error_message TEXT
-);
-''')
-
-conn.commit()
-
-# Logging helpers
-
-def log_run_start(question: str) -> str:
-    # Generate a random string ID for this run
-    run_id = generate_run_id()
-    ts = datetime.now(timezone.utc).isoformat()
-    cursor.execute(
-        'INSERT INTO runs (id, question, start_time) VALUES (?, ?, ?)',
-        (run_id, question, ts)
-    )
-    conn.commit()
-    return run_id
-
-def log_llm_metrics(response, start_time, model_name="Unknown", is_query=True, run_id=None, iteration=None, result_index=None, raw_prompt=None):
-    """
-    Log metrics from an LLM response including tokens and execution time.
-    Also stores the metrics in the database.
-    
-    Args:
-        response: The LLM response object
-        start_time: The start time of the LLM call
-        model_name: Name of the model used
-        is_query: Whether this is a query generation (True) or analysis (False)
-        run_id: Current run ID for database logging
-        iteration: Current iteration number for database logging
-        result_index: Result index for analysis operations (None for query operations)
-        raw_prompt: The raw text of the prompt that was sent to the LLM
-    """
-    elapsed_time = time.time() - start_time
-    operation = "Query generation" if is_query else "Result analysis"
-    
-    # Log execution time
-    logger.info(f"{operation} execution time: {elapsed_time:.2f} seconds")
-    
-    # Initialize metrics with defaults
-    prompt_tokens = None
-    completion_tokens = None
-    total_tokens = None
-    error_message = None
-    raw_content = None
-    
-    # Try to extract token information if available in the response
-    try:
-        # Extract raw content for logging
-        if hasattr(response, 'content'):
-            raw_content = str(response.content)[:1000]  # Limit size for storage
-        
-        if hasattr(response, 'usage'):
-            prompt_tokens = getattr(response.usage, 'prompt_tokens', None)
-            completion_tokens = getattr(response.usage, 'completion_tokens', None)
-            # Calculate total_tokens if not present
-            if hasattr(response.usage, 'total_tokens') and response.usage.total_tokens is not None:
-                total_tokens = response.usage.total_tokens
-            elif prompt_tokens is not None and completion_tokens is not None:
-                total_tokens = prompt_tokens + completion_tokens
-            logger.info(f"{operation} token usage - Input: {prompt_tokens}, Output: {completion_tokens}, Total: {total_tokens}")
-        else:
-            logger.info(f"{operation} completed, but token usage information not available")
-            error_message = "Token usage information not available"
-    except Exception as e:
-        error_message = str(e)
-        logger.warning(f"Could not extract token usage information: {str(e)}")
-    
-    # Store in database if run_id is provided
-    if run_id is not None:
-        ts = datetime.now(timezone.utc).isoformat()
-        
-        try:
-            if is_query:
-                # Store query metrics
-                cursor.execute('''
-                INSERT INTO query_llm_metrics 
-                (run_id, iteration, timestamp, model_name, execution_time_seconds, 
-                prompt_tokens, completion_tokens, total_tokens, raw_prompt, raw_content, error_message)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', 
-                (run_id, iteration, ts, model_name, elapsed_time, 
-                prompt_tokens, completion_tokens, total_tokens, raw_prompt, raw_content, error_message))
-            else:
-                # Store analysis metrics
-                cursor.execute('''
-                INSERT INTO analysis_llm_metrics 
-                (run_id, iteration, result_index, timestamp, model_name, execution_time_seconds, 
-                prompt_tokens, completion_tokens, total_tokens, raw_prompt, raw_content, error_message)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''',
-                (run_id, iteration, result_index, ts, model_name, elapsed_time,
-                prompt_tokens, completion_tokens, total_tokens, raw_prompt, raw_content, error_message))
-            
-            conn.commit()
-            logger.info(f"Logged {operation} metrics to database")
-        except Exception as e:
-            logger.error(f"Failed to log {operation} metrics to database: {str(e)}")
-
-def log_query_generation(run_id: int, iteration: int, prompt: str, response: str):
-    ts = datetime.now(timezone.utc).isoformat()
-    cursor.execute(
-        'INSERT INTO query_generations (run_id, iteration, timestamp, prompt, response) VALUES (?, ?, ?, ?, ?)',
-        (run_id, iteration, ts, prompt, response)
-    )
-    conn.commit()
-
-
-def log_search_query(run_id: int, iteration: int, query: str):
-    ts = datetime.now(timezone.utc).isoformat()
-    # Insert run_id, iteration, query, timestamp into search_queries (4 placeholders)
-    cursor.execute(
-        'INSERT INTO search_queries (run_id, iteration, query, timestamp) VALUES (?, ?, ?, ?)',
-        (run_id, iteration, query, ts)
-    )
-    conn.commit()
-
-
-def log_search_result(run_id: int, iteration: int, query: str, results: str):
-    ts = datetime.now(timezone.utc).isoformat()
-    cursor.execute(
-        'INSERT INTO search_results (run_id, iteration, query, results, timestamp) VALUES (?, ?, ?, ?, ?)',
-        (run_id, iteration, query, results, ts)
-    )
-    conn.commit()
-
-
-def log_analysis_prompt(run_id: int, iteration: int, result_index: int, prompt: str):
-    ts = datetime.now(timezone.utc).isoformat()
-    cursor.execute(
-        'INSERT INTO analysis_prompts (run_id, iteration, result_index, timestamp, prompt) VALUES (?, ?, ?, ?, ?)',
-        (run_id, iteration, result_index, ts, prompt)
-    )
-    conn.commit()
-
-
-def log_analysis_result(run_id: int, iteration: int, result_index: int, response: str):
-    ts = datetime.now(timezone.utc).isoformat()
-    cursor.execute(
-        'INSERT INTO analysis_results (run_id, iteration, result_index, timestamp, response) VALUES (?, ?, ?, ?, ?)',
-        (run_id, iteration, result_index, ts, response)
-    )
-    conn.commit()
+conn, cursor = init_main_db(DB_PATH)
 
 # Define search function that returns structured data for better analysis
 async def search_knowledge_base(query: str, max_results: int = 5) -> str:
@@ -489,6 +254,7 @@ async def analyze_search_results(question: str, search_results: List[Dict], max_
             break  # Skip analysis for the rest if answer already found with high confidence
         title = result.get("title", "No title")
         content = result.get("content", "No content")
+        logger.info(f"Analyzing result {idx}/{len(search_results)}: {title}")
         prompt = f"""You are a search result analysis assistant. Given a question and a single search result, determine if this result is useful and if it answers the question.
 
 QUESTION: {question}
@@ -530,7 +296,8 @@ For each result, respond in JSON with these keys:
                 analysis = json.loads(json_str)
             else:
                 analysis = json.loads(response.content)
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error analyzing search result: {str(e)}")
             traceback.print_exc()
             analysis = {"answer_found": False, "answer": None, "confidence": 0.0, "is_useful": False, "reasoning": "Failed to analyze via LLM."}
             if isinstance(content, str) and "answer is" in content.lower():
@@ -655,7 +422,7 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
     answer_found = False
     final_answer = None
     
-    run_id = log_run_start(question)
+    run_id = log_run_start(cursor, conn, generate_run_id, question)
     
     while iterations < max_iterations and not answer_found:
         iterations += 1
@@ -674,7 +441,7 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
         queries = json.loads(queries_json)
         all_queries.extend(queries)
         
-        log_query_generation(run_id, iterations, question, queries_json)
+        log_query_generation(cursor, conn, run_id, iterations, question, queries_json)
         
         # Execute searches
         logger.info(f"Executing {len(queries)} searches")
@@ -690,8 +457,8 @@ async def answer_from_knowledge_base(question: str, max_iterations: int = 5) -> 
                     "results": results.get("results", [])
                 })
                 
-                log_search_query(run_id, iterations, query)
-                log_search_result(run_id, iterations, query, results_json)
+                log_search_query(cursor, conn, run_id, iterations, query)
+                log_search_result(cursor, conn, run_id, iterations, query, results_json)
         
         # Analyze results to see if we found an answer
         if iteration_results:
