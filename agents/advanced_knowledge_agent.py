@@ -456,6 +456,7 @@ async def analyze_search_results(question: str, search_results: List[Dict], max_
                               run_id: str = None, iteration: int = None) -> str:
     """
     Analyze search results to determine if they contain an answer to the question.
+    Only results marked as useful (is_useful=True) are considered for aggregation.
     
     Args:
         question: The question to answer
@@ -488,18 +489,23 @@ async def analyze_search_results(question: str, search_results: List[Dict], max_
             break  # Skip analysis for the rest if answer already found with high confidence
         title = result.get("title", "No title")
         content = result.get("content", "No content")
-        prompt = f"""You are a search result analysis assistant. Given a question and a single search result, determine if this result answers the question.
+        prompt = f"""You are a search result analysis assistant. Given a question and a single search result, determine if this result is useful and if it answers the question.
+
 QUESTION: {question}
 
 RESULT:
 TITLE: {title}
 CONTENT: {content}
 
-Respond in JSON with keys:
-- answer_found (boolean)
-- answer (string or null)
-- confidence (float between 0.0 and 1.0)
-- reasoning (string)
+For each result, respond in JSON with these keys:
+- is_useful (boolean): True if the result contains any information that could help answer the question, otherwise False. If False, the result will be discarded.
+- answer_found (boolean): True if the result directly answers the question, otherwise False.
+- answer (string or null): The answer if found, otherwise null.
+- confidence (float between 0.0 and 1.0): Your confidence that the answer is correct.
+- missing_information (string): What is missing from this result to fully answer the question, or empty if nothing is missing.
+- summary (string): A concise summary of the relevant information in this result.
+- relevant_text (string): The exact text span from the result that is most relevant to the question.
+- reasoning (string): Explain your reasoning for the above fields.
 """
         start_time = time.time()
         try:
@@ -526,7 +532,7 @@ Respond in JSON with keys:
                 analysis = json.loads(response.content)
         except Exception:
             traceback.print_exc()
-            analysis = {"answer_found": False, "answer": None, "confidence": 0.0, "reasoning": "Failed to analyze via LLM."}
+            analysis = {"answer_found": False, "answer": None, "confidence": 0.0, "is_useful": False, "reasoning": "Failed to analyze via LLM."}
             if isinstance(content, str) and "answer is" in content.lower():
                 part = content.lower().split("answer is", 1)[1].strip()
                 answer_text = part.rstrip(".?!")
@@ -534,17 +540,20 @@ Respond in JSON with keys:
                     "answer_found": True,
                     "answer": answer_text,
                     "confidence": 0.5,
+                    "is_useful": True,
                     "reasoning": "Heuristic fallback match extracted answer."
                 }
         log_llm_metrics(response, start_time, model_name="gpt-4o-mini", is_query=False, run_id=run_id, iteration=iteration, raw_prompt=prompt)
-        individual_analyses.append({
-            "result_index": idx,
-            "result": {"title": title, "content": content, "score": result.get("score")},
-            "analysis": analysis
-        })
-        if analysis.get("answer_found") and analysis.get("confidence", 0.0) >= 0.8:
-            answer_found = True
-            answer_confidence = analysis.get("confidence", 0.0)
+        # Only keep results that are useful
+        if analysis.get("is_useful", False):
+            individual_analyses.append({
+                "result_index": idx,
+                "result": {"title": title, "content": content, "score": result.get("score")},
+                "analysis": analysis
+            })
+            if analysis.get("answer_found") and analysis.get("confidence", 0.0) >= 0.8:
+                answer_found = True
+                answer_confidence = analysis.get("confidence", 0.0)
 
     # Aggregate individual analyses: pick highest-confidence positive
     positive = [a for a in individual_analyses if a["analysis"].get("answer_found")]
@@ -626,7 +635,7 @@ Make your thinking process explicit - explain what queries you're trying and why
 Remember that each tool call counts as one API call, so be strategic about your searches.
 """,
     reflect_on_tool_use=True,
-    model_client_stream=True,  # Enable streaming tokens from the model client
+    model_client_stream=False,  # Disable streaming to allow tool use
 )
 logger.info("Advanced knowledge agent created successfully")
 
@@ -745,21 +754,44 @@ async def run_agent_with_search_results(task: str, max_iterations: int = 1):
                         "results": results.get("results", [])
                     })
 
-        # Then pass the results to the agent
-        logger.info("Passing search results to agent for final response")
+        # Use new attributes from analyze_search_results for the agent's prompt
+        final_answer = search_results.get("final_answer")
+        useful_results = []
+        if final_answer and "individual_results" in final_answer:
+            for res in final_answer["individual_results"]:
+                analysis = res.get("analysis", {})
+                if analysis.get("is_useful", False):
+                    useful_results.append({
+                        "title": res["result"].get("title"),
+                        "summary": analysis.get("summary"),
+                        "relevant_text": analysis.get("relevant_text"),
+                        "confidence": analysis.get("confidence"),
+                        "reasoning": analysis.get("reasoning"),
+                        "missing_information": analysis.get("missing_information"),
+                        "answer_found": analysis.get("answer_found"),
+                        "answer": analysis.get("answer")
+                    })
 
-        # Create a new prompt with the search results
+        # Create a new prompt with the filtered, useful results and their attributes
         enhanced_task = f"""
 Question: {task}
 
-Here are the search results from the knowledge base:
-{json.dumps(search_results, indent=2)}
+Here are the useful search results from the knowledge base (filtered by is_useful=True):
+{json.dumps(useful_results, indent=2)}
 
-Please analyze these search results and provide a comprehensive answer to the question.
+Each result includes:
+- title: The result's title
+- summary: A concise summary of relevant information
+- relevant_text: The most relevant text span
+- confidence: Confidence score for the answer
+- reasoning: Explanation for the analysis
+- missing_information: What is missing, if anything
+- answer_found: Whether an answer was found in this result
+- answer: The answer if found
+
+Please analyze these search results and provide a comprehensive answer to the question, citing the most relevant results and explaining your reasoning.
 """
-        # Capture the agent's output instead of just streaming to console
         agent_response = await advanced_knowledge_agent.run(task=enhanced_task)
-        # Log LLM metrics for the agent's final response
         log_llm_metrics(agent_response, time.time(), model_name=getattr(agent_model_client, 'model_name', getattr(agent_model_client, 'model', 'Unknown')), is_query=False, run_id=run_id, iteration=None, raw_prompt=enhanced_task)
         logger.info("Agent task completed successfully")
         return search_results, agent_response
