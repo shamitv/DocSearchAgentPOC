@@ -157,14 +157,9 @@ Return ONLY a numbered list of search queries, one per line, with no explanation
         generated_text = response.content
         if isinstance(generated_text, list):
             # If it's a list of function calls, we can't use it for queries
-            logger.warning("LLM returned function calls instead of text, using fallbacks")
-            queries = [
-                question,
-                f"{question} facts",
-                f"{question} details",
-                f"{question} when",
-                f"{question} who"
-            ]
+            err_msg = "LLM returned function calls instead of text."
+            logger.warning(err_msg)
+            raise ValueError(err_msg)
         else:
             # Use the string content
             logger.info(f"Raw LLM response: {generated_text}")
@@ -187,29 +182,14 @@ Return ONLY a numbered list of search queries, one per line, with no explanation
             
             # Ensure we have the requested number of queries
             if not queries:
-                # Fallback if parsing failed
-                logger.warning("Failed to parse queries from LLM response, using fallbacks")
-                queries = [
-                    question,
-                    f"{question} facts",
-                    f"{question} history",
-                    f"{question} date",
-                    f"{question} details"
-                ]
+                raise ValueError("No valid queries generated from LLM response.")
             
             # Limit to requested number
             queries = queries[:num_queries]
         
     except Exception as e:
         logger.error(f"Error generating queries with LLM: {str(e)}")
-        # Fallback to basic queries if there's an error
-        queries = [
-            question,
-            f"{question} facts",
-            f"{question} history",
-            f"{question} date",
-            f"{question} details"
-        ]
+        raise
     
     elapsed_time = time.time() - start_time
     logger.info(f"Generated {len(queries)} queries in {elapsed_time:.2f} seconds")
