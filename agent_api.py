@@ -6,12 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import asyncio
+import logging
 
-from utils import search_knowledge_base
+from utils import search_knowledge_base, LoggerConfig
 from agents.advanced_knowledge_agent import (
     generate_search_queries,
     run_agent_with_search_results
 )
+
+logger = LoggerConfig.configure_logging()
 
 app = FastAPI()
 app.add_middleware(
@@ -32,6 +35,7 @@ class SearchRequest(BaseModel):
 
 @app.post("/api/agent")
 async def run_agent(request: AgentRequest):
+    logger.info(f"Received agent request for question: {request.question}")
     try:
         search_results, agent_response = await run_agent_with_search_results(
             request.question, request.max_iterations
@@ -54,11 +58,13 @@ async def run_agent(request: AgentRequest):
             except Exception:
                 return str(resp)
         agent_response_clean = extract_agent_response(agent_response)
+        logger.info("Agent request processed successfully")
         return {
             "search_results": search_results,
             "agent_response": agent_response_clean
         }
     except Exception as e:
+        logger.error(f"Error running agent: {str(e)}", exc_info=True)
         return {
             "error": str(e),
             "traceback": traceback.format_exc()
@@ -66,14 +72,17 @@ async def run_agent(request: AgentRequest):
 
 @app.post("/api/search")
 async def run_search_query(request: SearchRequest):
+    logger.info(f"Received search request for query: {request.query}")
     try:
         results = search_knowledge_base(request.query, max_results=request.max_results)
+        logger.info("Search request processed successfully")
         return {
             "query": request.query,
             "max_results": request.max_results,
             "results": results.get("results", [])
         }
     except Exception as e:
+        logger.error(f"Error running search query: {str(e)}", exc_info=True)
         return {
             "error": f"Error running search: {str(e)}",
             "traceback": traceback.format_exc()
@@ -81,11 +90,14 @@ async def run_search_query(request: SearchRequest):
 
 @app.get("/api/queries")
 async def generate_queries_endpoint(question: str = Query(...)):
+    logger.info(f"Received query generation request for question: {question}")
     try:
         queries_json = await generate_search_queries(question)
         queries = json.loads(queries_json)
+        logger.info("Query generation request processed successfully")
         return {"queries": queries}
     except Exception as e:
+        logger.error(f"Error generating queries: {str(e)}", exc_info=True)
         return {"error": str(e)}
 
 # To run: uvicorn agent_api:app --reload --port 8000

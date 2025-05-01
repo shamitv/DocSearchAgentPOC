@@ -3,18 +3,18 @@ from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
 import os
 import logging
+from utils import LoggerConfig # Import LoggerConfig
 
 # Load environment variables
 load_dotenv()
 
 # Elasticsearch configuration
 ES_HOST = os.getenv("ES_HOST")
-ES_PORT = int(os.getenv("ES_PORT"))  
+ES_PORT = int(os.getenv("ES_PORT"))
 ES_INDEX = os.getenv("ES_INDEX")
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Configure logging using LoggerConfig from utils
+logger = LoggerConfig.configure_logging()
 
 # Log Elasticsearch parameters
 logger.info(f"Elasticsearch Host: {ES_HOST}")

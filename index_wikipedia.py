@@ -1,15 +1,15 @@
 import bz2
 import traceback
+import logging  # Keep the import for potential direct use if needed
 
 import mwxml
 
 import mwparserfromhell
-import logging
 from datetime import datetime, timezone
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from utils import EnvLoader, ElasticsearchClient
+from utils import EnvLoader, ElasticsearchClient, LoggerConfig # Import LoggerConfig
 import sys
 
 # Load environment variables
@@ -22,15 +22,18 @@ es_search_index = env_vars.get("ES_SEARCH_INDEX")
 # Define INDEX_NAME using the loaded environment variable
 INDEX_NAME = es_search_index
 
+# Configure logging using LoggerConfig from utils
+logger = LoggerConfig.configure_logging()
+
 # Initialize Elasticsearch client
 try:
     es = ElasticsearchClient.get_client(es_host, es_port)
 except Exception as e:
-    logging.error(f"Failed to initialize Elasticsearch client: {str(e)}")
+    logger.error(f"Failed to initialize Elasticsearch client: {str(e)}") # Use logger
     sys.exit(1) # Exit if ES connection fails
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure logging - REMOVED, now handled by LoggerConfig
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Create a ThreadPoolExecutor for asynchronous bulk indexing
 executor = ThreadPoolExecutor(max_workers=20)
@@ -74,7 +77,7 @@ def _process_templates(wikicode):
             wikicode.replace(template, replacement)
         except ValueError:
             # This might happen if the template structure changed unexpectedly or was already replaced
-            logging.warning(f"Could not replace template {template} - ValueError. Might be due to complex nesting or prior modification.")
+            logger.warning(f"Could not replace template {template} - ValueError. Might be due to complex nesting or prior modification.") # Use logger
             pass
 
 def extract_plain_text(raw_text):
@@ -85,7 +88,7 @@ def extract_plain_text(raw_text):
         _process_templates(wikicode)
     except Exception as e:
         # Catch potential errors during the parsing/replacement itself
-        logging.error(f"Error processing templates in text starting with '{raw_text[:50]}...': {e}")
+        logger.error(f"Error processing templates in text starting with '{raw_text[:50]}...': {e}") # Use logger
     return wikicode.strip_code()
 
 def index_documents_bulk(documents):
@@ -118,7 +121,7 @@ def process_dump(file_path):
     bulk_documents = []
     bulk_size = 500  # Number of documents to index in a single bulk request
 
-    logging.info(f"Opening dump file: {file_path}")
+    logger.info(f"Opening dump file: {file_path}") # Use logger
     with bz2.open(file_path, "rb") as file:
         dump = mwxml.Dump.from_file(file)
         for page in dump:
@@ -145,35 +148,35 @@ def process_dump(file_path):
                         bulk_documents.append(document)
 
                         if len(bulk_documents) >= bulk_size:
-                            logging.info(f"Indexing bulk of {len(bulk_documents)} documents...")
+                            logger.info(f"Indexing bulk of {len(bulk_documents)} documents...") # Use logger
                             index_documents_bulk_async(bulk_documents)
                             doc_count += len(bulk_documents)
                             bulk_documents = []
 
                             elapsed_time = time.time() - start_time
                             avg_time_per_doc = elapsed_time / doc_count
-                            logging.info(f"Processed {doc_count} documents so far. Average time per document: {avg_time_per_doc:.6f} seconds.")
+                            logger.info(f"Processed {doc_count} documents so far. Average time per document: {avg_time_per_doc:.6f} seconds.") # Use logger
             except Exception as e:
-                logging.error(f"Error processing {title}: {e}")
+                logger.error(f"Error processing {title}: {e}") # Use logger
 
         # Index any remaining documents
         if bulk_documents:
-            logging.info(f"Indexing final bulk of {len(bulk_documents)} documents...")
+            logger.info(f"Indexing final bulk of {len(bulk_documents)} documents...") # Use logger
             index_documents_bulk_async(bulk_documents)
             doc_count += len(bulk_documents)
 
-    logging.info(f"All tasks completed. Total documents processed: {doc_count}.")
+    logger.info(f"All tasks completed. Total documents processed: {doc_count}.") # Use logger
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         #try to get the dump file path from environment variable via utils
         dump_path = EnvLoader.get_dump_file_path()
         if not dump_path:
-            logging.error("Dump file path not provided. Please specify the dump file path as a command line argument or set it in the environment.")
+            logger.error("Dump file path not provided. Please specify the dump file path as a command line argument or set it in the environment.") # Use logger
             print(f"Usage: python {sys.argv[0]} <dump_file_path>")
             sys.exit(1)
     else:
         dump_path = sys.argv[1]
-    logging.info("Starting Wikipedia dump processing...")
+    logger.info("Starting Wikipedia dump processing...") # Use logger
     process_dump(dump_path)
-    logging.info("Processing completed.")
+    logger.info("Processing completed.") # Use logger
