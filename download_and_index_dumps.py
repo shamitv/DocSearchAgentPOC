@@ -16,8 +16,12 @@ logger = LoggerConfig.configure_logging()
 logger.info("Script started")
 print(f"Current logging level: {logging.getLevelName(logger.getEffectiveLevel())}")
 
-# Load environment variables
-ES_HOST, ES_PORT, ES_DUMP_INDEX, ES_INDEX = EnvLoader.load_env()
+# Load environment variables using EnvLoader
+env_vars = EnvLoader.load_env()
+ES_HOST = env_vars.get("ES_HOST")
+ES_PORT = env_vars.get("ES_PORT")
+ES_DUMP_INDEX = env_vars.get("ES_DUMP_INDEX")
+ES_INDEX = env_vars.get("ES_SEARCH_INDEX") # Assuming ES_INDEX corresponds to ES_SEARCH_INDEX
 
 DUMP_DIR = "./data/wikidump/"
 DUMP_URL = "https://dumps.wikimedia.org/other/incr/enwiki/"

@@ -27,8 +27,13 @@ from agents.db_logging import (
 logger = LoggerConfig.configure_logging()
 logger.info("Initializing Advanced Knowledge Agent")
 
-# Load environment variables using EnvLoader
-es_host, es_port,es_dump_index ,es_index = EnvLoader.load_env()
+# Load environment variables
+env_vars = EnvLoader.load_env()
+es_host = env_vars.get("ES_HOST")
+es_port = env_vars.get("ES_PORT")
+es_dump_index = env_vars.get("ES_DUMP_INDEX")
+es_index = env_vars.get("ES_SEARCH_INDEX") # Assuming es_index corresponds to ES_SEARCH_INDEX
+
 logger.info("Environment variables loaded")
 
 # Initialize Elasticsearch client using ElasticsearchClient
@@ -81,135 +86,98 @@ async def generate_search_queries(question: str, previous_queries: List[str] = N
     try:
         # Construct a prompt for the LLM based on what stage we're in
         if refinement_mode:
-            # Format previous search results for the prompt
-            formatted_results = ""
-            for i, result in enumerate(search_results):
-                if i >= 3:  # Limit to first 3 results to keep prompt size reasonable
-                    break
-                query = result.get("query", "Unknown query")
-                results_list = result.get("results", [])
-                formatted_results += f"Query: {query}\n"
-                for j, res in enumerate(results_list[:2]):  # Only show first 2 results per query
-                    title = res.get("title", "No title")
-                    content_preview = res.get("content", "")[:100] + "..." if len(res.get("content", "")) > 100 else res.get("content", "")
-                    formatted_results += f"  Result {j+1}: {title}\n  Preview: {content_preview}\n"
-                formatted_results += "\n"
-            
-            # Create a prompt for refining queries based on previous results
-            prompt = f"""You are a search query generator for a research system. Your goal is to generate refined search queries 
-based on initial search results to better answer a user's question.
-Today's date is {datetime.now().strftime('%-d %B %Y')}. Use this as a reference for any temporal or time-sensitive questions.
+            # Prompt for refinement stage
+            prompt = f"""Given the original question and previous search attempts, generate {num_queries} new, more specific search queries.
 
-Original question: "{question}"
+Original Question: {question}
 
-Previous queries tried:
-{', '.join(previous_queries)}
+Previous Queries Tried:
+{json.dumps(previous_queries, indent=2)}
 
-Results from previous searches:
-{formatted_results}
+Summary of Previous Results:
+{json.dumps([res.get('title', 'No Title') for res in search_results], indent=2)}
 
-Based on these results, generate {num_queries} new search queries that:
-1. Target specific information gaps in the initial results
-2. Use different terminology or phrasing that might yield better results
-3. Focus on aspects of the question not well covered in initial results
-4. Are diverse in approach (entity-focused, date-focused, event-focused, etc.)
-5. Would help complete the answer to the original question
-
-Return ONLY a numbered list of search queries, one per line, with no explanations or additional text.
+Generate {num_queries} new queries focusing on aspects potentially missed or needing clarification. Output ONLY a JSON list of strings.
 """
         else:
-            # Initial query generation prompt
-            prompt = f"""You are a search query generator for a research system. Your goal is to generate effective search queries
-to answer a user's question by searching a knowledge base.
+            # Prompt for initial query generation
+            prompt = f"""Generate {num_queries} diverse search queries for the following question. Output ONLY a JSON list of strings.
 
-Today's date is {datetime.now().strftime('%-d %B %Y')}. Use this as a reference for any temporal or time-sensitive questions.
+Question: {question}
 
-Question: "{question}"
-
-Generate {num_queries} different search queries that:
-1. Cover different aspects and interpretations of the question
-2. Use diverse phrasings and terminology
-3. Include specific entities, dates, or events mentioned in the question
-4. Vary in specificity (some broad, some narrow)
-5. Would collectively help build a comprehensive answer
-
-Return ONLY a numbered list of search queries, one per line, with no explanations or additional text.
+Example Output: ["query 1", "query 2", "query 3"]
 """
         
         # Call the LLM to generate queries
         logger.info("Calling LLM to generate search queries")
         llm_call_start_time = time.time()
         try:
-            response = await query_model_client.create(
-                messages=[
-                    SystemMessage(content="You are a search query generation assistant. Generate concise, effective search queries."),
-                    UserMessage(content=prompt, source="user")
-                ]
+            # Use the dedicated query generation client
+            response = await query_model_client.chat_completion(
+                messages=[UserMessage(content=prompt)],
+                temperature=0.5, # Encourage some creativity but stay focused
+                max_tokens=500, # Ample space for queries
+                response_format={"type": "json_object"} # Request JSON output
             )
-            
-            # Log details about the LLM response including token counts
-            log_llm_metrics(response, llm_call_start_time, 
-                           model_name=getattr(query_model_client, 'model_name', getattr(query_model_client, 'model', 'Unknown')), 
-                           is_query=True, run_id=run_id, iteration=iteration, raw_prompt=prompt)
+            log_llm_metrics("generate_search_queries", query_model_client.model, time.time() - llm_call_start_time, response.usage)
+            logger.info(f"LLM response for query generation received: {response.content}")
             
         except Exception as e:
-            logger.error(f"Error calling LLM: {str(e)}", exc_info=True)
+            logger.error(f"LLM call failed during query generation: {str(e)}")
+            # Fallback or re-raise depending on desired robustness
             raise
         
         # Process the response to extract queries
-        generated_text = response.content
-        if isinstance(generated_text, list):
-            # If it's a list of function calls, we can't use it for queries
-            err_msg = "LLM returned function calls instead of text."
-            logger.warning(err_msg)
-            raise ValueError(err_msg)
-        else:
-            # Use the string content
-            logger.info(f"Raw LLM response: {generated_text}")
-            
-            
-            # Remove any <think>...</think> blocks from the response
-            generated_text = re.sub(r'<think>[\s\S]*?</think>', '', generated_text, flags=re.IGNORECASE)
-            # Remove any reasoning or explanation before the numbered list
-            # Find the first line that looks like a numbered query (e.g., '1. ...')
-            numbered_start = None
-            for idx, line in enumerate(generated_text.split('\n')):
-                if re.match(r"\s*\d+\. ", line):
-                    numbered_start = idx
-                    break
-            if numbered_start is not None:
-                generated_text = '\n'.join(generated_text.split('\n')[numbered_start:])
-            
-            # Extract queries from the numbered list format
-            query_lines = [line.strip() for line in generated_text.split('\n') if line.strip()]
-            queries = []
-            
-            for line in query_lines:
-                # Remove numbering (like "1.", "2.", etc.)
-                if '. ' in line and line[0].isdigit():
-                    query = line.split('. ', 1)[1].strip()
+        generated_content = response.content
+        queries = []
+        if isinstance(generated_content, str):
+            try:
+                # Attempt to parse the string as JSON
+                parsed_json = json.loads(generated_content)
+                # Check if it's a list of strings
+                if isinstance(parsed_json, list) and all(isinstance(item, str) for item in parsed_json):
+                    queries = parsed_json
+                # Handle cases where the LLM might wrap the list in a dict, e.g., {"queries": [...]} 
+                elif isinstance(parsed_json, dict):
+                    # Look for a key that likely contains the list (e.g., 'queries', 'results')
+                    for key, value in parsed_json.items():
+                        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+                            queries = value
+                            logger.warning(f"Extracted queries from key '{key}' in LLM JSON response.")
+                            break
+                    if not queries:
+                         logger.error(f"LLM returned JSON object but no list of strings found: {generated_content}")
                 else:
-                    query = line.strip()
-                    
-                if query:
-                    # Remove quotes if present
-                    query = query.strip('"\'')
-                    queries.append(query)
-            
-            # Ensure we have the requested number of queries
-            if not queries:
-                raise ValueError("No valid queries generated from LLM response.")
-            
-            # Limit to requested number
-            queries = queries[:num_queries]
+                    logger.error(f"LLM JSON response is not a list of strings or expected dict: {generated_content}")
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse LLM response as JSON for queries: {generated_content}")
+                # Attempt to extract list-like structures if JSON parsing fails (less reliable)
+                # Example: Find content within square brackets
+                import re
+                match = re.search(r'\[\s*("[^"\\]*(?:\\.[^"\\]*)*"\s*,?\s*)+\]', generated_content)
+                if match:
+                    try:
+                        queries = json.loads(match.group(0))
+                        logger.warning("Recovered queries using regex fallback from non-JSON string.")
+                    except json.JSONDecodeError:
+                        logger.error("Regex fallback failed to parse extracted list.")
+        else:
+             logger.error(f"Unexpected LLM response type for queries: {type(generated_content)}")
+
+        # Ensure we don't exceed num_queries requested
+        queries = queries[:num_queries]
         
     except Exception as e:
         logger.error(f"Error generating queries with LLM: {str(e)}")
-        raise
+        # Return empty list on error to avoid breaking the flow
+        queries = [] 
     
     elapsed_time = time.time() - start_time
     logger.info(f"Generated {len(queries)} queries in {elapsed_time:.2f} seconds")
     logger.info(f"Generated queries: {queries}")
+    
+    # Log the generated queries to the database
+    log_query_generation(cursor, conn, run_id, iteration, question, json.dumps(queries))
     
     return json.dumps(queries)
 
@@ -274,53 +242,33 @@ For each result, respond in JSON with these keys:
 """
         start_time = time.time()
         try:
-            response = await analysis_model_client.create(
-                messages=[
-                    SystemMessage(content="You are a search result analysis assistant that provides concise JSON outputs."),
-                    UserMessage(content=prompt, source="user")
-                ]
+            # Use the dedicated analysis client
+            response = await analysis_model_client.chat_completion(
+                messages=[UserMessage(content=prompt)],
+                temperature=0.2, # Lower temperature for factual analysis
+                max_tokens=1000, # Max tokens for analyzing one result
+                response_format={"type": "json_object"} # Request JSON output
             )
-            raw_content = response.content
-            if isinstance(raw_content, str):
-                raw_content = raw_content.strip()
-                match = re.search(r"```json(.*?)```", raw_content, re.DOTALL)
-                if match:
-                    json_str = match.group(1).strip()
-                else:
-                    match = re.search(r"({[\s\S]*})", raw_content)
-                    if match:
-                        json_str = match.group(1)
-                    else:
-                        json_str = raw_content
-                analysis = json.loads(json_str)
-            else:
-                analysis = json.loads(response.content)
+            log_llm_metrics("analyze_search_results_individual", analysis_model_client.model, time.time() - start_time, response.usage)
+            analysis = json.loads(response.content)
+            individual_analyses.append({"result_index": idx, "analysis": analysis})
+            logger.info(f"Analysis for result {idx}: {analysis}")
+            
+            # Check if this result provides a high-confidence answer
+            if analysis.get("answer_found") and analysis.get("confidence", 0.0) >= 0.8:
+                 answer_found = True
+                 answer_confidence = analysis.get("confidence", 0.0)
+                 logger.info(f"High-confidence answer found in result {idx}. Confidence: {answer_confidence}")
+                 # Optional: break early if high confidence answer found
+                 # break 
+
         except Exception as e:
-            logger.error(f"Error analyzing search result: {str(e)}")
-            traceback.print_exc()
-            analysis = {"answer_found": False, "answer": None, "confidence": 0.0, "is_useful": False, "reasoning": "Failed to analyze via LLM."}
-            if isinstance(content, str) and "answer is" in content.lower():
-                part = content.lower().split("answer is", 1)[1].strip()
-                answer_text = part.rstrip(".?!")
-                analysis = {
-                    "answer_found": True,
-                    "answer": answer_text,
-                    "confidence": 0.5,
-                    "is_useful": True,
-                    "reasoning": "Heuristic fallback match extracted answer."
-                }
-        log_llm_metrics(response, start_time, model_name="gpt-4o-mini", is_query=False, run_id=run_id, iteration=iteration, raw_prompt=prompt)
-        # Only keep results that are useful
-        if analysis.get("is_useful", False):
+            logger.error(f"LLM call failed during analysis of result {idx}: {str(e)}")
+            # Append a failure record
             individual_analyses.append({
                 "result_index": idx,
-                "result": {"title": title, "content": content, "score": result.get("score")},
-                "analysis": analysis
+                "analysis": {"error": f"LLM analysis failed: {str(e)}"}
             })
-            if analysis.get("answer_found") and analysis.get("confidence", 0.0) >= 0.8:
-                answer_found = True
-                answer_confidence = analysis.get("confidence", 0.0)
-
     # Aggregate individual analyses: pick highest-confidence positive
     positive = [a for a in individual_analyses if a["analysis"].get("answer_found")]
     if positive:
@@ -341,6 +289,8 @@ For each result, respond in JSON with these keys:
             "reasoning": "No individual result contained an answer."
         }
     overall["individual_results"] = individual_analyses
+    # Log the final aggregated analysis
+    log_analysis_result(cursor, conn, run_id, iteration, question, json.dumps(overall))
     return json.dumps(overall)
 
 # Define separate model clients for different tasks

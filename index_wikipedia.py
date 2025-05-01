@@ -12,10 +12,22 @@ from concurrent.futures import ThreadPoolExecutor
 from utils import EnvLoader, ElasticsearchClient
 import sys
 
-# Load environment and initialize Elasticsearch client
-es_host, es_port, es_dump_index, es_search_index = EnvLoader.load_env()
-es = ElasticsearchClient.get_client(es_host, es_port)
+# Load environment variables
+env_vars = EnvLoader.load_env()
+es_host = env_vars.get("ES_HOST")
+es_port = env_vars.get("ES_PORT")
+es_dump_index = env_vars.get("ES_DUMP_INDEX")
+es_search_index = env_vars.get("ES_SEARCH_INDEX")
+
+# Define INDEX_NAME using the loaded environment variable
 INDEX_NAME = es_search_index
+
+# Initialize Elasticsearch client
+try:
+    es = ElasticsearchClient.get_client(es_host, es_port)
+except Exception as e:
+    logging.error(f"Failed to initialize Elasticsearch client: {str(e)}")
+    sys.exit(1) # Exit if ES connection fails
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -32,6 +44,7 @@ def index_document(title, text, metadata):
         "metadata": metadata,
         "indexed_on": datetime.now(timezone.utc).isoformat()
     }
+    # Use the globally defined es and INDEX_NAME
     es.index(index=INDEX_NAME, id=document_id, document=document)
 
 def _process_templates(wikicode):
@@ -79,21 +92,23 @@ def index_documents_bulk(documents):
     """Index multiple documents into Elasticsearch in bulk."""
     actions = []
     for doc in documents:
+        # Use the globally defined INDEX_NAME
         action = {"index": {"_index": INDEX_NAME, "_id": doc["metadata"]["id"]}}
         actions.append(action)
         actions.append(doc)
-
+    # Use the globally defined es
     es.bulk(operations=actions)
 
 def index_documents_bulk_async(documents):
     """Index multiple documents into Elasticsearch in bulk asynchronously."""
     actions = []
     for doc in documents:
+        # Use the globally defined INDEX_NAME
         action = {"index": {"_index": INDEX_NAME, "_id": doc["metadata"]["id"]}}
         actions.append(action)
         actions.append(doc)
 
-    # Submit the bulk operation to the executor
+    # Submit the bulk operation to the executor using the global es
     executor.submit(es.bulk, operations=actions)
 
 def process_dump(file_path):
