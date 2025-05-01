@@ -10,7 +10,7 @@ except ImportError:
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
     from utils import EnvLoader, ElasticsearchClient, LoggerConfig
 
-logger = LoggerConfig.configure_logging(log_file='wiki_es_indexer.log') # Use the same log file for consistency
+logger = LoggerConfig.configure_logging() # Use the same log file for consistency
 
 class ElasticsearchHandler:
     """Handles Elasticsearch client initialization and bulk indexing operations."""
