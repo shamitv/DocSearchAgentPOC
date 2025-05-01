@@ -5,6 +5,7 @@ import pstats
 import io
 import argparse
 
+
 # Import necessary components from the new package
 from wiki_es_indexer.indexer import process_dump, logger # Import logger for script-level messages
 from utils import EnvLoader # Keep EnvLoader for getting dump path

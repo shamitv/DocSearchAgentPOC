@@ -10,6 +10,7 @@ import cProfile
 import pstats
 import io
 from functools import wraps
+import os
 
 # Import the new handler
 from .es_handler import ElasticsearchHandler
@@ -164,8 +165,9 @@ def extract_page(page):
     
     return page_data
 
-def _process_page(page_data, parser):
-    """Processes a single page from the dump.
+def process_page_for_mp(page_data, parser):
+    """Processes a single page from the dump for multiprocessing.
+    This function must be at module level to be properly serialized.
 
     Args:
         page_data: Dictionary containing the extracted page data.
@@ -282,6 +284,12 @@ def submit_bulk_documents(bulk_documents, timings, doc_count, start_time, bulk_s
             
     return doc_count
 
+# --- Serializable functions for multiprocessing ---
+
+def noop_function():
+    """Empty function for worker initialization in ProcessPoolExecutor."""
+    return None
+
 # --- Core Indexing Functions ---
 
 @profile(output_file="indexer_profile.prof", lines_to_display=30)
@@ -315,9 +323,16 @@ def process_dump(file_path):
             logger.info(f"File opening completed in {timings['file_opening']:.2f}s")
             
             # Process pages in parallel with a maximum of N workers
-            with concurrent.futures.ProcessPoolExecutor(max_workers=20) as executor:
+            num_workers = min(20, os.cpu_count() or 1)  # Use all available cores or a max of 20
+            
+            with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
+                # spin up all workers up front
+                futures = [executor.submit(noop_function) for _ in range(num_workers)]
+                for f in futures: f.result()  # wait for them to start (and immediately do nothing)
+
+
                 # Process the dump in batches to avoid memory issues
-                batch_size = 100  # Process pages in batches of 100
+                batch_size = 10  # Process pages in batches
                 page_count = 0
                 
                 while True:
@@ -325,6 +340,9 @@ def process_dump(file_path):
                     batch = list(islice(dump, batch_size))
                     if not batch:
                         break
+                        
+                    # If you're submitting tasks to process pages, use the named function:
+                    # futures = [executor.submit(process_page, page) for page in batch]
                     
                     # Extract page data first
                     page_data_list = []
@@ -335,7 +353,7 @@ def process_dump(file_path):
                     
                     # Submit batch for parallel processing
                     page_start = time.time()
-                    future_to_page = {executor.submit(_process_page, page_data, parser): page_data for page_data in page_data_list}
+                    future_to_page = {executor.submit(process_page_for_mp, page_data, parser): page_data for page_data in page_data_list}
                     
                     # Process completed futures as they finish
                     for future in concurrent.futures.as_completed(future_to_page):
@@ -356,7 +374,7 @@ def process_dump(file_path):
                     # Record batch processing time
                     batch_time = time.time() - page_start
                     timings["page_processing"] += batch_time
-                    logger.debug(f"Processed batch of {len(batch)} pages in {batch_time:.2f}s")
+                    #logger.info(f"Processed batch of {len(batch)} pages in {batch_time:.2f}s")
 
             # Index any remaining documents
             if bulk_documents:
