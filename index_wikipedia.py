@@ -1,4 +1,6 @@
 import bz2
+import traceback
+
 import mwxml
 
 import mwparserfromhell
@@ -32,18 +34,45 @@ def index_document(title, text, metadata):
     }
     es.index(index=INDEX_NAME, id=document_id, document=document)
 
+def _process_templates(wikicode):
+    """Helper function to process templates within wikicode recursively."""
+    # Process templates depth-first: find templates, recursively process their params, then replace.
+    templates_to_process = list(wikicode.filter_templates(recursive=False)) # Get top-level templates first
+
+    for template in templates_to_process:
+        params = []
+        for param in template.params:
+            # Recursively process templates within the parameter value first
+            value_wikicode = param.value # Get the Wikicode object for the value
+            if hasattr(value_wikicode, 'filter_templates'): # Check if value contains more wikicode
+                _process_templates(value_wikicode) # Process templates within the value
+
+            name = str(param.name).strip()
+            # Convert the processed parameter value to string
+            value_str = str(value_wikicode).strip()
+            # Manually replace <br> tags (and variants) with actual newline characters
+            value_str = value_str.replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
+            params.append(f"{name}: {value_str}")
+
+        # Join parameters with actual newline characters
+        replacement = "\n".join(params)
+        try:
+            # Replace the original template instance
+            wikicode.replace(template, replacement)
+        except ValueError:
+            # This might happen if the template structure changed unexpectedly or was already replaced
+            logging.warning(f"Could not replace template {template} - ValueError. Might be due to complex nesting or prior modification.")
+            pass
+
 def extract_plain_text(raw_text):
     """Convert raw markup text to plain text, preserving template parameters."""
     wikicode = mwparserfromhell.parse(raw_text)
     # Preserve templates content by replacing each template with its parameter key-value pairs
-    for template in wikicode.filter_templates():
-        params = []
-        for param in template.params:
-            name = str(param.name).strip()
-            value = str(param.value).strip()
-            params.append(f"{name}: {value}")
-        replacement = "\n".join(params)
-        wikicode.replace(template, replacement)
+    try:
+        _process_templates(wikicode)
+    except Exception as e:
+        # Catch potential errors during the parsing/replacement itself
+        logging.error(f"Error processing templates in text starting with '{raw_text[:50]}...': {e}")
     return wikicode.strip_code()
 
 def index_documents_bulk(documents):
@@ -78,33 +107,39 @@ def process_dump(file_path):
     with bz2.open(file_path, "rb") as file:
         dump = mwxml.Dump.from_file(file)
         for page in dump:
-            if not page.redirect:
-                for revision in page:
-                    title = page.title
-                    raw_text = revision.text or ""
-                    plain_text = extract_plain_text(raw_text)
-                    metadata = {
-                        "id": page.id,
-                        "revision_id": revision.id,
-                        "timestamp": str(revision.timestamp)  # Convert to string
-                    }
-                    document = {
-                        "title": title,
-                        "text": plain_text,
-                        "metadata": metadata,
-                        "indexed_on": datetime.now(timezone.utc).isoformat()
-                    }
-                    bulk_documents.append(document)
+            try:
+                if not page.redirect:
+                    # Skip pages with namespace > 0
+                    if page.namespace > 0:
+                        continue
+                    for revision in page:
+                        title = page.title
+                        raw_text = revision.text or ""
+                        plain_text = extract_plain_text(raw_text)
+                        metadata = {
+                            "id": page.id,
+                            "revision_id": revision.id,
+                            "timestamp": str(revision.timestamp)  # Convert to string
+                        }
+                        document = {
+                            "title": title,
+                            "text": plain_text,
+                            "metadata": metadata,
+                            "indexed_on": datetime.now(timezone.utc).isoformat()
+                        }
+                        bulk_documents.append(document)
 
-                    if len(bulk_documents) >= bulk_size:
-                        logging.info(f"Indexing bulk of {len(bulk_documents)} documents...")
-                        index_documents_bulk_async(bulk_documents)
-                        doc_count += len(bulk_documents)
-                        bulk_documents = []
+                        if len(bulk_documents) >= bulk_size:
+                            logging.info(f"Indexing bulk of {len(bulk_documents)} documents...")
+                            index_documents_bulk_async(bulk_documents)
+                            doc_count += len(bulk_documents)
+                            bulk_documents = []
 
-                        elapsed_time = time.time() - start_time
-                        avg_time_per_doc = elapsed_time / doc_count
-                        logging.info(f"Processed {doc_count} documents so far. Average time per document: {avg_time_per_doc:.6f} seconds.")
+                            elapsed_time = time.time() - start_time
+                            avg_time_per_doc = elapsed_time / doc_count
+                            logging.info(f"Processed {doc_count} documents so far. Average time per document: {avg_time_per_doc:.6f} seconds.")
+            except Exception as e:
+                logging.error(f"Error processing {title}: {e}")
 
         # Index any remaining documents
         if bulk_documents:
@@ -116,6 +151,8 @@ def process_dump(file_path):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
+        #try to get the dump file path from environment variable via utils
+        dump_path = EnvLoader.get_dump_file_path()
         print(f"Usage: python {sys.argv[0]} <dump_file_path>")
         sys.exit(1)
     dump_path = sys.argv[1]

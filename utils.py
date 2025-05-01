@@ -39,6 +39,14 @@ class EnvLoader:
         
         return es_host, es_port, es_dump_index, es_search_index
 
+    @classmethod
+    def get_dump_file_path(cls):
+        dump_file_path = os.getenv("DUMP_FILE_PATH")
+        if not dump_file_path:
+            raise EnvironmentError("DUMP_FILE_PATH environment variable is not set.")
+        return dump_file_path
+
+
 class LoggerConfig:
     @staticmethod
     def configure_logging():

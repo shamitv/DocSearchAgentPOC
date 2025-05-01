@@ -98,6 +98,7 @@ async def generate_search_queries(question: str, previous_queries: List[str] = N
             # Create a prompt for refining queries based on previous results
             prompt = f"""You are a search query generator for a research system. Your goal is to generate refined search queries 
 based on initial search results to better answer a user's question.
+Today's date is {datetime.now().strftime('%-d %B %Y')}. Use this as a reference for any temporal or time-sensitive questions.
 
 Original question: "{question}"
 
@@ -120,6 +121,8 @@ Return ONLY a numbered list of search queries, one per line, with no explanation
             # Initial query generation prompt
             prompt = f"""You are a search query generator for a research system. Your goal is to generate effective search queries
 to answer a user's question by searching a knowledge base.
+
+Today's date is {datetime.now().strftime('%-d %B %Y')}. Use this as a reference for any temporal or time-sensitive questions.
 
 Question: "{question}"
 
@@ -163,6 +166,19 @@ Return ONLY a numbered list of search queries, one per line, with no explanation
         else:
             # Use the string content
             logger.info(f"Raw LLM response: {generated_text}")
+            
+            
+            # Remove any <think>...</think> blocks from the response
+            generated_text = re.sub(r'<think>[\s\S]*?</think>', '', generated_text, flags=re.IGNORECASE)
+            # Remove any reasoning or explanation before the numbered list
+            # Find the first line that looks like a numbered query (e.g., '1. ...')
+            numbered_start = None
+            for idx, line in enumerate(generated_text.split('\n')):
+                if re.match(r"\s*\d+\. ", line):
+                    numbered_start = idx
+                    break
+            if numbered_start is not None:
+                generated_text = '\n'.join(generated_text.split('\n')[numbered_start:])
             
             # Extract queries from the numbered list format
             query_lines = [line.strip() for line in generated_text.split('\n') if line.strip()]

@@ -8,3 +8,4 @@ autogen-agentchat
 chainlit
 flask
 flask-cors
+pytest

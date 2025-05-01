@@ -1,3 +1,5 @@
+import traceback
+
 import requests
 from bs4 import BeautifulSoup
 import os
@@ -121,6 +123,7 @@ for filename, dump_date in dump_files:
             es.update(index=ES_DUMP_INDEX, id=es_id, body={'doc': {'status': 'processed'}})
             logger.info(f"Updated {filename} in ES as 'processed'.")
         except Exception as e:
+            traceback.print_exc()
             logger.error(f"Failed to process dump {filename}: {e}")
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to download {file_url}: {e}")
