@@ -12,6 +12,8 @@ import io
 from functools import wraps
 import os
 
+from indexed_bzip2 import IndexedBzip2File
+
 # Import the new handler
 from .es_handler import ElasticsearchHandler
 
@@ -314,7 +316,8 @@ def process_dump(file_path):
     logger.info(f"Opening dump file: {file_path}")
     try:
         file_open_start = time.time()
-        with bz2.open(file_path, "rb") as file:
+        #with bz2.open(file_path, "rb") as file:
+        with IndexedBzip2File(file_path, parallelization = 4) as file:
             dump = mwxml.Dump.from_file(file)
             timings["file_opening"] = time.time() - file_open_start
             import concurrent.futures

@@ -9,3 +9,4 @@ chainlit
 flask
 flask-cors
 pytest
+indexed_bzip2
