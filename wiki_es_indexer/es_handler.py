@@ -85,3 +85,40 @@ class ElasticsearchHandler:
     def get_client(self):
         """Returns the underlying Elasticsearch client instance."""
         return self.es_client
+
+    def index_document(self, document):
+        """
+        Indexes a single document in Elasticsearch.
+    
+        Args:
+            document (dict): Document dictionary to index.
+    
+        Returns:
+            bool: True if indexing was successful, False otherwise.
+        """
+        if not document:
+            logger.warning("Empty document provided for indexing.")
+            return False
+    
+        # Ensure metadata and id exist
+        doc_id = document.get("metadata", {}).get("id")
+        if not doc_id:
+            logger.warning(f"Document missing metadata.id, cannot index: {str(document)[:100]}...")
+            return False
+    
+        # Add indexed_on timestamp if not present
+        if "indexed_on" not in document:
+            document["indexed_on"] = datetime.now(timezone.utc).isoformat()
+    
+        try:
+            # Index the document directly
+            self.es_client.index(
+                index=self.index_name,
+                id=doc_id,
+                document=document
+            )
+            logger.debug(f"Successfully indexed document with id: {doc_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index document with id {doc_id}: {str(e)}")
+            return False

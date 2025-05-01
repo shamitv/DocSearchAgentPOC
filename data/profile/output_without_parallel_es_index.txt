@@ -1,0 +1,345 @@
+/Volumes/work_ext/work/DocSearchAgentPOC/.venv/bin/python /Volumes/work_ext/work/DocSearchAgentPOC/index_wikipedia.py /Volumes/work_ext/work/DocSearchAgentPOC/data/wikidump/2/20250402_enwiki-20250402-pages-meta-hist-incr.xml.bz2
+2025-05-01 17:46:34,870 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:34,870 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+INFO:index_wikipedia:Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:34,871 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:34,871 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:34,871 - INFO - Starting Wikipedia dump processing...
+2025-05-01 17:46:34,871 - INFO - Starting Wikipedia dump processing...
+INFO:index_wikipedia:Starting Wikipedia dump processing...
+2025-05-01 17:46:34,871 - INFO - Opening dump file: /Volumes/work_ext/work/DocSearchAgentPOC/data/wikidump/2/20250402_enwiki-20250402-pages-meta-hist-incr.xml.bz2
+2025-05-01 17:46:34,871 - INFO - Opening dump file: /Volumes/work_ext/work/DocSearchAgentPOC/data/wikidump/2/20250402_enwiki-20250402-pages-meta-hist-incr.xml.bz2
+INFO:index_wikipedia:Opening dump file: /Volumes/work_ext/work/DocSearchAgentPOC/data/wikidump/2/20250402_enwiki-20250402-pages-meta-hist-incr.xml.bz2
+2025-05-01 17:46:34,918 - INFO - File opening completed in 0.05s
+2025-05-01 17:46:34,918 - INFO - File opening completed in 0.05s
+INFO:index_wikipedia:File opening completed in 0.05s
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+INFO:index_wikipedia:Elasticsearch client connected to i3tiny1.local:7020
+INFO:index_wikipedia:Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+INFO:index_wikipedia:Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+INFO:index_wikipedia:Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+INFO:index_wikipedia:Elasticsearch client connected to i3tiny1.local:7020
+INFO:index_wikipedia:Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+INFO:index_wikipedia:Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+INFO:index_wikipedia:Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - Elasticsearch client connected to i3tiny1.local:7020
+INFO:index_wikipedia:Elasticsearch client connected to i3tiny1.local:7020
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:36,713 - INFO - ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+INFO:index_wikipedia:ElasticsearchHandler initialized for index 'wikipedia' with 20 workers.
+2025-05-01 17:46:43,204 - WARNING - Slow parsing: 'Dead Sea' took 1.06s to parse
+2025-05-01 17:46:43,204 - WARNING - Slow parsing: 'Dead Sea' took 1.06s to parse
+WARNING:index_wikipedia:Slow parsing: 'Dead Sea' took 1.06s to parse
+2025-05-01 17:46:53,148 - WARNING - Slow parsing: 'New Brunswick' took 1.06s to parse
+2025-05-01 17:46:53,148 - WARNING - Slow parsing: 'New Brunswick' took 1.06s to parse
+WARNING:index_wikipedia:Slow parsing: 'New Brunswick' took 1.06s to parse
+2025-05-01 17:47:13,615 - WARNING - Slow parsing: 'Columbine High School massacre' took 1.46s to parse
+2025-05-01 17:47:13,615 - WARNING - Slow parsing: 'Columbine High School massacre' took 1.46s to parse
+WARNING:index_wikipedia:Slow parsing: 'Columbine High School massacre' took 1.46s to parse
+2025-05-01 17:47:47,752 - WARNING - Slow parsing: 'Larry Hagman' took 1.53s to parse
+2025-05-01 17:47:47,752 - WARNING - Slow parsing: 'Larry Hagman' took 1.53s to parse
+WARNING:index_wikipedia:Slow parsing: 'Larry Hagman' took 1.53s to parse
+2025-05-01 17:47:51,780 - WARNING - Slow parsing: 'Suvarnabhumi Airport' took 1.25s to parse
+2025-05-01 17:47:51,780 - WARNING - Slow parsing: 'Suvarnabhumi Airport' took 1.25s to parse
+WARNING:index_wikipedia:Slow parsing: 'Suvarnabhumi Airport' took 1.25s to parse
+2025-05-01 17:48:09,970 - WARNING - Slow parsing: 'Chuck Austen' took 1.17s to parse
+2025-05-01 17:48:09,970 - WARNING - Slow parsing: 'Chuck Austen' took 1.17s to parse
+WARNING:index_wikipedia:Slow parsing: 'Chuck Austen' took 1.17s to parse
+2025-05-01 17:48:44,970 - WARNING - Slow parsing: 'Piazza Fontana bombing' took 1.62s to parse
+2025-05-01 17:48:44,970 - WARNING - Slow parsing: 'Piazza Fontana bombing' took 1.62s to parse
+WARNING:index_wikipedia:Slow parsing: 'Piazza Fontana bombing' took 1.62s to parse
+2025-05-01 17:50:13,022 - WARNING - Slow parsing: 'Zimbabwe Metro' took 4.91s to parse
+2025-05-01 17:50:13,022 - WARNING - Slow parsing: 'Zimbabwe Metro' took 4.91s to parse
+WARNING:index_wikipedia:Slow parsing: 'Zimbabwe Metro' took 4.91s to parse
+2025-05-01 17:50:13,241 - WARNING - Slow page processing: 'Zimbabwe Metro' took 5.13s to process completely
+2025-05-01 17:50:13,241 - WARNING - Slow page processing: 'Zimbabwe Metro' took 5.13s to process completely
+WARNING:index_wikipedia:Slow page processing: 'Zimbabwe Metro' took 5.13s to process completely
+2025-05-01 17:51:02,886 - WARNING - Slow parsing: 'John Woodhouse (British Army officer)' took 2.71s to parse
+2025-05-01 17:51:02,886 - WARNING - Slow parsing: 'John Woodhouse (British Army officer)' took 2.71s to parse
+WARNING:index_wikipedia:Slow parsing: 'John Woodhouse (British Army officer)' took 2.71s to parse
+2025-05-01 17:51:02,904 - WARNING - Slow page processing: 'John Woodhouse (British Army officer)' took 2.73s to process completely
+2025-05-01 17:51:02,904 - WARNING - Slow page processing: 'John Woodhouse (British Army officer)' took 2.73s to process completely
+WARNING:index_wikipedia:Slow page processing: 'John Woodhouse (British Army officer)' took 2.73s to process completely
+2025-05-01 17:51:31,702 - WARNING - Slow parsing: 'Sarang school' took 3.91s to parse
+2025-05-01 17:51:31,702 - WARNING - Slow parsing: 'Sarang school' took 3.91s to parse
+WARNING:index_wikipedia:Slow parsing: 'Sarang school' took 3.91s to parse
+2025-05-01 17:51:31,785 - WARNING - Slow page processing: 'Sarang school' took 4.00s to process completely
+2025-05-01 17:51:31,785 - WARNING - Slow page processing: 'Sarang school' took 4.00s to process completely
+WARNING:index_wikipedia:Slow page processing: 'Sarang school' took 4.00s to process completely
+2025-05-01 17:52:13,723 - WARNING - Slow parsing: 'Eurolymp' took 2.18s to parse
+2025-05-01 17:52:13,723 - WARNING - Slow parsing: 'Eurolymp' took 2.18s to parse
+WARNING:index_wikipedia:Slow parsing: 'Eurolymp' took 2.18s to parse
+2025-05-01 17:52:13,816 - WARNING - Slow page processing: 'Eurolymp' took 2.27s to process completely
+2025-05-01 17:52:13,816 - WARNING - Slow page processing: 'Eurolymp' took 2.27s to process completely
+WARNING:index_wikipedia:Slow page processing: 'Eurolymp' took 2.27s to process completely
+2025-05-01 17:52:18,765 - WARNING - Slow parsing: 'Sigurdur Thordarson' took 1.52s to parse
+2025-05-01 17:52:18,765 - WARNING - Slow parsing: 'Sigurdur Thordarson' took 1.52s to parse
+WARNING:index_wikipedia:Slow parsing: 'Sigurdur Thordarson' took 1.52s to parse
+2025-05-01 17:52:40,979 - WARNING - Slow parsing: 'Mr. Sunshine (South Korean TV series)' took 1.32s to parse
+2025-05-01 17:52:40,979 - WARNING - Slow parsing: 'Mr. Sunshine (South Korean TV series)' took 1.32s to parse
+WARNING:index_wikipedia:Slow parsing: 'Mr. Sunshine (South Korean TV series)' took 1.32s to parse
+2025-05-01 17:52:42,459 - WARNING - Slow parsing: 'Emma Dent Coad' took 1.13s to parse
+2025-05-01 17:52:42,459 - WARNING - Slow parsing: 'Emma Dent Coad' took 1.13s to parse
+WARNING:index_wikipedia:Slow parsing: 'Emma Dent Coad' took 1.13s to parse
+2025-05-01 17:52:46,197 - WARNING - Slow parsing: 'Rex Sanders' took 2.14s to parse
+2025-05-01 17:52:46,197 - WARNING - Slow parsing: 'Rex Sanders' took 2.14s to parse
+WARNING:index_wikipedia:Slow parsing: 'Rex Sanders' took 2.14s to parse
+2025-05-01 17:52:46,321 - WARNING - Slow page processing: 'Rex Sanders' took 2.26s to process completely
+2025-05-01 17:52:46,321 - WARNING - Slow page processing: 'Rex Sanders' took 2.26s to process completely
+WARNING:index_wikipedia:Slow page processing: 'Rex Sanders' took 2.26s to process completely
+2025-05-01 17:52:59,925 - WARNING - Slow parsing: 'Jack Murchie' took 2.30s to parse
+2025-05-01 17:52:59,925 - WARNING - Slow parsing: 'Jack Murchie' took 2.30s to parse
+WARNING:index_wikipedia:Slow parsing: 'Jack Murchie' took 2.30s to parse
+2025-05-01 17:53:00,031 - WARNING - Slow page processing: 'Jack Murchie' took 2.41s to process completely
+2025-05-01 17:53:00,031 - WARNING - Slow page processing: 'Jack Murchie' took 2.41s to process completely
+WARNING:index_wikipedia:Slow page processing: 'Jack Murchie' took 2.41s to process completely
+2025-05-01 17:53:14,889 - WARNING - Slow parsing: 'The White Tiger (2021 film)' took 1.32s to parse
+2025-05-01 17:53:14,889 - WARNING - Slow parsing: 'The White Tiger (2021 film)' took 1.32s to parse
+WARNING:index_wikipedia:Slow parsing: 'The White Tiger (2021 film)' took 1.32s to parse
+2025-05-01 17:53:21,465 - WARNING - Slow parsing: 'History of the Islamic State' took 1.16s to parse
+2025-05-01 17:53:21,465 - WARNING - Slow parsing: 'History of the Islamic State' took 1.16s to parse
+WARNING:index_wikipedia:Slow parsing: 'History of the Islamic State' took 1.16s to parse
+2025-05-01 17:53:23,916 - WARNING - Slow indexing: 'Zigger Zagger' took 0.53s to index
+2025-05-01 17:53:23,916 - WARNING - Slow indexing: 'Zigger Zagger' took 0.53s to index
+WARNING:index_wikipedia:Slow indexing: 'Zigger Zagger' took 0.53s to index
+2025-05-01 17:53:28,881 - WARNING - Slow parsing: 'Rusangano Family' took 1.02s to parse
+2025-05-01 17:53:28,881 - WARNING - Slow parsing: 'Rusangano Family' took 1.02s to parse
+WARNING:index_wikipedia:Slow parsing: 'Rusangano Family' took 1.02s to parse
+2025-05-01 17:53:49,203 - WARNING - Slow parsing: 'Ria Thompson' took 1.06s to parse
+2025-05-01 17:53:49,203 - WARNING - Slow parsing: 'Ria Thompson' took 1.06s to parse
+WARNING:index_wikipedia:Slow parsing: 'Ria Thompson' took 1.06s to parse
+2025-05-01 17:54:00,836 - WARNING - Slow parsing: 'Marshall Nelson' took 1.17s to parse
+2025-05-01 17:54:00,836 - WARNING - Slow parsing: 'Marshall Nelson' took 1.17s to parse
+WARNING:index_wikipedia:Slow parsing: 'Marshall Nelson' took 1.17s to parse
+2025-05-01 17:54:03,546 - WARNING - Slow parsing: 'Walking Home: Travels with a Troubadour on the Pennine Way' took 1.13s to parse
+2025-05-01 17:54:03,546 - WARNING - Slow parsing: 'Walking Home: Travels with a Troubadour on the Pennine Way' took 1.13s to parse
+WARNING:index_wikipedia:Slow parsing: 'Walking Home: Travels with a Troubadour on the Pennine Way' took 1.13s to parse
+2025-05-01 17:54:24,472 - WARNING - Slow parsing: 'Along the Way (Colbie Caillat album)' took 2.00s to parse
+2025-05-01 17:54:24,472 - WARNING - Slow parsing: 'Along the Way (Colbie Caillat album)' took 2.00s to parse
+WARNING:index_wikipedia:Slow parsing: 'Along the Way (Colbie Caillat album)' took 2.00s to parse
+2025-05-01 17:54:24,524 - WARNING - Slow page processing: 'Along the Way (Colbie Caillat album)' took 2.05s to process completely
+2025-05-01 17:54:24,524 - WARNING - Slow page processing: 'Along the Way (Colbie Caillat album)' took 2.05s to process completely
+WARNING:index_wikipedia:Slow page processing: 'Along the Way (Colbie Caillat album)' took 2.05s to process completely
+2025-05-01 17:54:32,116 - WARNING - Slow parsing: 'Château de Bailleul (Seine-Maritime)' took 1.54s to parse
+2025-05-01 17:54:32,116 - WARNING - Slow parsing: 'Château de Bailleul (Seine-Maritime)' took 1.54s to parse
+WARNING:index_wikipedia:Slow parsing: 'Château de Bailleul (Seine-Maritime)' took 1.54s to parse
+2025-05-01 17:54:37,288 - WARNING - Slow parsing: '2025 ARCA Menards Series West' took 4.43s to parse
+2025-05-01 17:54:37,288 - WARNING - Slow parsing: '2025 ARCA Menards Series West' took 4.43s to parse
+WARNING:index_wikipedia:Slow parsing: '2025 ARCA Menards Series West' took 4.43s to parse
+2025-05-01 17:54:37,339 - WARNING - Slow page processing: '2025 ARCA Menards Series West' took 4.48s to process completely
+2025-05-01 17:54:37,339 - WARNING - Slow page processing: '2025 ARCA Menards Series West' took 4.48s to process completely
+WARNING:index_wikipedia:Slow page processing: '2025 ARCA Menards Series West' took 4.48s to process completely
+2025-05-01 17:54:50,436 - WARNING - Slow parsing: 'NOK Corporation' took 1.83s to parse
+2025-05-01 17:54:50,436 - WARNING - Slow parsing: 'NOK Corporation' took 1.83s to parse
+WARNING:index_wikipedia:Slow parsing: 'NOK Corporation' took 1.83s to parse
+2025-05-01 17:55:24,407 - WARNING - Slow parsing: '7:00 P.M. (The Pitt)' took 2.76s to parse
+2025-05-01 17:55:24,407 - WARNING - Slow parsing: '7:00 P.M. (The Pitt)' took 2.76s to parse
+WARNING:index_wikipedia:Slow parsing: '7:00 P.M. (The Pitt)' took 2.76s to parse
+2025-05-01 17:55:24,554 - WARNING - Slow page processing: '7:00 P.M. (The Pitt)' took 2.91s to process completely
+2025-05-01 17:55:24,554 - WARNING - Slow page processing: '7:00 P.M. (The Pitt)' took 2.91s to process completely
+WARNING:index_wikipedia:Slow page processing: '7:00 P.M. (The Pitt)' took 2.91s to process completely
+2025-05-01 17:55:34,191 - INFO - Waiting for all indexing tasks to complete...
+2025-05-01 17:55:34,191 - INFO - Waiting for all indexing tasks to complete...
+INFO:index_wikipedia:Waiting for all indexing tasks to complete...
+2025-05-01 17:55:34,192 - INFO - Shutting down ElasticsearchHandler's executor...
+2025-05-01 17:55:34,192 - INFO - Shutting down ElasticsearchHandler's executor...
+INFO:index_wikipedia:Shutting down ElasticsearchHandler's executor...
+2025-05-01 17:55:34,192 - INFO - Executor shutdown complete.
+2025-05-01 17:55:34,192 - INFO - Executor shutdown complete.
+INFO:index_wikipedia:Executor shutdown complete.
+2025-05-01 17:55:34,192 - INFO - All tasks completed. Total documents processed: 0.
+2025-05-01 17:55:34,192 - INFO - All tasks completed. Total documents processed: 0.
+INFO:index_wikipedia:All tasks completed. Total documents processed: 0.
+2025-05-01 17:55:34,192 - INFO - Performance summary:
+2025-05-01 17:55:34,192 - INFO - Performance summary:
+INFO:index_wikipedia:Performance summary:
+2025-05-01 17:55:34,192 - INFO - - Total processing time: 539.32s
+2025-05-01 17:55:34,192 - INFO - - Total processing time: 539.32s
+INFO:index_wikipedia:- Total processing time: 539.32s
+2025-05-01 17:55:34,192 - INFO - - File opening: 0.05s (0.0%)
+2025-05-01 17:55:34,192 - INFO - - File opening: 0.05s (0.0%)
+INFO:index_wikipedia:- File opening: 0.05s (0.0%)
+2025-05-01 17:55:34,192 - INFO - - Page processing: 0.00s (0.0%)
+2025-05-01 17:55:34,192 - INFO - - Page processing: 0.00s (0.0%)
+INFO:index_wikipedia:- Page processing: 0.00s (0.0%)
+2025-05-01 17:55:34,193 - INFO - - Final shutdown: 0.00s (0.0%)
+2025-05-01 17:55:34,193 - INFO - - Final shutdown: 0.00s (0.0%)
+INFO:index_wikipedia:- Final shutdown: 0.00s (0.0%)
+2025-05-01 17:55:34,193 - INFO - - Avg time per document: 0.000000s
+2025-05-01 17:55:34,193 - INFO - - Avg time per document: 0.000000s
+INFO:index_wikipedia:- Avg time per document: 0.000000s
+2025-05-01 17:55:34,196 - INFO - Profile results for process_dump:
+         96150052 function calls (90341580 primitive calls) in 539.284 seconds
+
+   Ordered by: cumulative time
+   List reduced from 656 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.002    0.002  539.284  539.284 /Volumes/work_ext/work/DocSearchAgentPOC/wiki_es_indexer/indexer.py:266(process_dump)
+        1    0.000    0.000  539.211  539.211 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py:646(__exit__)
+        1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:856(shutdown)
+      2/1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1117(join)
+124173/19    0.168    0.000  539.206   28.379 {method 'acquire' of '_thread.lock' objects}
+      2/1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1155(_wait_for_tstate_lock)
+      2/1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1018(_bootstrap)
+      2/1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1058(_bootstrap_inner)
+        1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:339(run)
+        1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:568(join_executor_internals)
+        1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:572(_join_executor_internals)
+        1    0.000    0.000  538.929  538.929 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/queues.py:147(join_thread)
+       17    0.000    0.000  538.929   31.702 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/util.py:208(__call__)
+        1    0.357    0.357  537.156  537.156 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/queues.py:214(_finalize_join)
+    17740    0.148    0.000  481.996    0.027 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:414(wait_result_broken_or_wakeup)
+    44353    0.233    0.000  481.298    0.011 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/connection.py:1122(wait)
+    44353    0.125    0.000  479.551    0.011 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/selectors.py:402(select)
+    44353  479.374    0.011  479.374    0.011 {method 'poll' of 'select.poll' objects}
+    95230    0.060    0.000   49.939    0.001 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/iteration/dump.py:84(load_items)
+   871781    2.357    0.000   48.266    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:69(complete)
+   754199    0.510    0.000   47.891    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:55(__iter__)
+10094754/4827917    1.903    0.000   46.800    0.000 {built-in method builtins.next}
+   491242    0.178    0.000   45.766    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:78(clear)
+  4983732    2.486    0.000   42.626    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:21(__next__)
+  4983732    0.950    0.000   36.906    0.000 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/xml/etree/ElementTree.py:1233(iterator)
+   368489    0.191    0.000   27.925    0.000 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/xml/etree/ElementTree.py:1278(feed)
+   368489   27.734    0.000   27.734    0.000 {method 'feed' of 'xml.etree.ElementTree.XMLParser' objects}
+   368507    5.588    0.000    5.588    0.000 {method 'read' of '_io.BufferedReader' objects}
+    95229    0.027    0.000    5.202    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/wiki_es_indexer/indexer.py:142(extract_page)
+    63626    0.013    0.000    5.156    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/iteration/page.py:36(__next__)
+
+
+
+2025-05-01 17:55:34,196 - INFO - Profile results for process_dump:
+         96150052 function calls (90341580 primitive calls) in 539.284 seconds
+
+   Ordered by: cumulative time
+   List reduced from 656 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.002    0.002  539.284  539.284 /Volumes/work_ext/work/DocSearchAgentPOC/wiki_es_indexer/indexer.py:266(process_dump)
+        1    0.000    0.000  539.211  539.211 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py:646(__exit__)
+        1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:856(shutdown)
+      2/1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1117(join)
+124173/19    0.168    0.000  539.206   28.379 {method 'acquire' of '_thread.lock' objects}
+      2/1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1155(_wait_for_tstate_lock)
+      2/1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1018(_bootstrap)
+      2/1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1058(_bootstrap_inner)
+        1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:339(run)
+        1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:568(join_executor_internals)
+        1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:572(_join_executor_internals)
+        1    0.000    0.000  538.929  538.929 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/queues.py:147(join_thread)
+       17    0.000    0.000  538.929   31.702 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/util.py:208(__call__)
+        1    0.357    0.357  537.156  537.156 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/queues.py:214(_finalize_join)
+    17740    0.148    0.000  481.996    0.027 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:414(wait_result_broken_or_wakeup)
+    44353    0.233    0.000  481.298    0.011 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/connection.py:1122(wait)
+    44353    0.125    0.000  479.551    0.011 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/selectors.py:402(select)
+    44353  479.374    0.011  479.374    0.011 {method 'poll' of 'select.poll' objects}
+    95230    0.060    0.000   49.939    0.001 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/iteration/dump.py:84(load_items)
+   871781    2.357    0.000   48.266    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:69(complete)
+   754199    0.510    0.000   47.891    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:55(__iter__)
+10094754/4827917    1.903    0.000   46.800    0.000 {built-in method builtins.next}
+   491242    0.178    0.000   45.766    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:78(clear)
+  4983732    2.486    0.000   42.626    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:21(__next__)
+  4983732    0.950    0.000   36.906    0.000 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/xml/etree/ElementTree.py:1233(iterator)
+   368489    0.191    0.000   27.925    0.000 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/xml/etree/ElementTree.py:1278(feed)
+   368489   27.734    0.000   27.734    0.000 {method 'feed' of 'xml.etree.ElementTree.XMLParser' objects}
+   368507    5.588    0.000    5.588    0.000 {method 'read' of '_io.BufferedReader' objects}
+    95229    0.027    0.000    5.202    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/wiki_es_indexer/indexer.py:142(extract_page)
+    63626    0.013    0.000    5.156    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/iteration/page.py:36(__next__)
+
+
+
+INFO:index_wikipedia:Profile results for process_dump:
+         96150052 function calls (90341580 primitive calls) in 539.284 seconds
+
+   Ordered by: cumulative time
+   List reduced from 656 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.002    0.002  539.284  539.284 /Volumes/work_ext/work/DocSearchAgentPOC/wiki_es_indexer/indexer.py:266(process_dump)
+        1    0.000    0.000  539.211  539.211 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py:646(__exit__)
+        1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:856(shutdown)
+      2/1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1117(join)
+124173/19    0.168    0.000  539.206   28.379 {method 'acquire' of '_thread.lock' objects}
+      2/1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1155(_wait_for_tstate_lock)
+      2/1    0.000    0.000  539.206  539.206 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1018(_bootstrap)
+      2/1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/threading.py:1058(_bootstrap_inner)
+        1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:339(run)
+        1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:568(join_executor_internals)
+        1    0.000    0.000  539.205  539.205 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:572(_join_executor_internals)
+        1    0.000    0.000  538.929  538.929 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/queues.py:147(join_thread)
+       17    0.000    0.000  538.929   31.702 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/util.py:208(__call__)
+        1    0.357    0.357  537.156  537.156 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/queues.py:214(_finalize_join)
+    17740    0.148    0.000  481.996    0.027 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/process.py:414(wait_result_broken_or_wakeup)
+    44353    0.233    0.000  481.298    0.011 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/connection.py:1122(wait)
+    44353    0.125    0.000  479.551    0.011 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/selectors.py:402(select)
+    44353  479.374    0.011  479.374    0.011 {method 'poll' of 'select.poll' objects}
+    95230    0.060    0.000   49.939    0.001 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/iteration/dump.py:84(load_items)
+   871781    2.357    0.000   48.266    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:69(complete)
+   754199    0.510    0.000   47.891    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:55(__iter__)
+10094754/4827917    1.903    0.000   46.800    0.000 {built-in method builtins.next}
+   491242    0.178    0.000   45.766    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:78(clear)
+  4983732    2.486    0.000   42.626    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/element_iterator.py:21(__next__)
+  4983732    0.950    0.000   36.906    0.000 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/xml/etree/ElementTree.py:1233(iterator)
+   368489    0.191    0.000   27.925    0.000 /Users/shamit/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/xml/etree/ElementTree.py:1278(feed)
+   368489   27.734    0.000   27.734    0.000 {method 'feed' of 'xml.etree.ElementTree.XMLParser' objects}
+   368507    5.588    0.000    5.588    0.000 {method 'read' of '_io.BufferedReader' objects}
+    95229    0.027    0.000    5.202    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/wiki_es_indexer/indexer.py:142(extract_page)
+    63626    0.013    0.000    5.156    0.000 /Volumes/work_ext/work/DocSearchAgentPOC/.venv/lib/python3.12/site-packages/mwxml/iteration/page.py:36(__next__)
+
+
+
+2025-05-01 17:55:34,199 - INFO - Profile data written to indexer_profile.prof
+2025-05-01 17:55:34,199 - INFO - Profile data written to indexer_profile.prof
+INFO:index_wikipedia:Profile data written to indexer_profile.prof
+2025-05-01 17:55:34,200 - INFO - Processing completed. Total documents processed: 0
+2025-05-01 17:55:34,200 - INFO - Processing completed. Total documents processed: 0
+INFO:index_wikipedia:Processing completed. Total documents processed: 0
+
+Process finished with exit code 0

@@ -168,7 +168,7 @@ def extract_page(page):
     return page_data
 
 def process_page_for_mp(page_data, parser):
-    """Processes a single page from the dump for multiprocessing.
+    """Processes a single page from the dump for multiprocessing and directly indexes it.
     This function must be at module level to be properly serialized.
 
     Args:
@@ -176,8 +176,7 @@ def process_page_for_mp(page_data, parser):
         parser: An instance of WikipediaArticleParser.
 
     Returns:
-        A dictionary representing the document to be indexed, or None if the page
-        should be skipped or an error occurs during processing.
+        Boolean indicating whether the document was successfully processed and indexed.
     """
     global page_processing_metrics
     page_processing_metrics["total_count"] += 1
@@ -186,7 +185,7 @@ def process_page_for_mp(page_data, parser):
     try:
         if not page_data:
             page_processing_metrics["skipped_count"] += 1
-            return None
+            return False
 
         title = page_data["title"]
         raw_text = page_data["raw_text"]
@@ -208,7 +207,7 @@ def process_page_for_mp(page_data, parser):
 
         if not plain_text: # Skip if text extraction failed or resulted in empty
             page_processing_metrics["skipped_count"] += 1
-            return None
+            return False
 
         metadata = {
             "id": page_data["page_id"],
@@ -222,6 +221,14 @@ def process_page_for_mp(page_data, parser):
             "indexed_on": datetime.now(timezone.utc).isoformat()
         }
         
+        # Directly submit to Elasticsearch
+        indexing_start = time.time()
+        es_handler.index_document(document)
+        indexing_time = time.time() - indexing_start
+        
+        if indexing_time > 0.5:  # Log slow indexing operations
+            logger.warning(f"Slow indexing: '{title}' took {indexing_time:.2f}s to index")
+        
         # Periodically log parsing metrics (every 1000 pages)
         if page_processing_metrics["total_count"] % 1000 == 0:
             avg_parsing_time = page_processing_metrics["parsing_time"] / page_processing_metrics["total_count"]
@@ -231,12 +238,12 @@ def process_page_for_mp(page_data, parser):
                       f"Max parsing time: {page_processing_metrics['max_parsing_time']:.2f}s "
                       f"('{page_processing_metrics['max_parsing_title']}')")
             
-        return document
+        return True
 
     except Exception as e:
         title_str = page_data.get('title', 'Unknown Page')
         logger.error(f"Error processing page '{title_str}' (ID: {page_data.get('page_id', 'N/A')}): {e}\n{traceback.format_exc()}")
-        return None
+        return False
     finally:
         # Record total processing time for the page if needed for advanced metrics
         process_time = time.time() - process_start
@@ -246,45 +253,7 @@ def process_page_for_mp(page_data, parser):
             logger.warning(f"Slow page processing: '{title_str}' took {process_time:.2f}s to process completely")
 
 
-def submit_bulk_documents(bulk_documents, timings, doc_count, start_time, bulk_size):
-    """
-    Submits accumulated documents to Elasticsearch in bulk and updates the metrics.
-    
-    Args:
-        bulk_documents (list): List of documents to submit
-        timings (dict): Dictionary of timing metrics to update
-        doc_count (int): Current document count
-        start_time (float): Start time of the overall process for calculating metrics
-        bulk_size (int): Size of the bulk batch for periodic logging
-        
-    Returns:
-        int: Updated document count after submission
-    """
-    if not bulk_documents:
-        return doc_count
-        
-    bulk_start = time.time()
-    logger.info(f"Queueing bulk index for {len(bulk_documents)} documents via handler...")
-    es_handler.submit_bulk_index(list(bulk_documents))  # Pass a copy
-    bulk_time = time.time() - bulk_start
-    timings["bulk_submission"] += bulk_time
-    
-    doc_count += len(bulk_documents)
-    
-    # Log progress periodically
-    if doc_count % (bulk_size * 10) == 0:  # Log every 10 bulks
-        elapsed_time = time.time() - start_time
-        timings["total_processing"] = elapsed_time
-        if doc_count > 0:
-            avg_time_per_doc = elapsed_time / doc_count
-            logger.info(f"Processed {doc_count} documents. Avg time/doc: {avg_time_per_doc:.6f}s.")
-            # Log timing breakdown
-            logger.info(f"Time breakdown - Page processing: {timings['page_processing']:.2f}s ({timings['page_processing']/elapsed_time*100:.1f}%), "
-                       f"Bulk submission: {timings['bulk_submission']:.2f}s ({timings['bulk_submission']/elapsed_time*100:.1f}%)")
-        else:
-            logger.info(f"Processed {doc_count} documents.")
-            
-    return doc_count
+# Function removed as we now index documents directly in process_page_for_mp
 
 # --- Serializable functions for multiprocessing ---
 
@@ -301,15 +270,12 @@ def process_dump(file_path):
     start_time = time.time()
     # Make sure the parser is simple enough to be pickled for multiprocessing
     # If there are issues with pickling, you may need to modify the parser class
-    bulk_documents = []
-    bulk_size = 500  # Consider making this configurable
     parser = WikipediaArticleParser() # Instantiate the parser
     
     # Timing statistics
     timings = {
         "file_opening": 0,
         "page_processing": 0,
-        "bulk_submission": 0,
         "total_processing": 0
     }
     
@@ -335,7 +301,7 @@ def process_dump(file_path):
 
 
                 # Process the dump in batches to avoid memory issues
-                batch_size = 10  # Process pages in batches
+                batch_size = 100  # Process pages in batches
                 page_count = 0
                 
                 while True:
@@ -363,25 +329,6 @@ def process_dump(file_path):
                         document = future.result()
                         page_count += 1
                         
-                        # We can't properly track individual page time in parallel mode,
-                        # so we'll track the overall batch time later
-                        
-                        if document:
-                            bulk_documents.append(document)
-                            
-                            # Check if bulk size is reached
-                            if len(bulk_documents) >= bulk_size:
-                                doc_count = submit_bulk_documents(bulk_documents, timings, doc_count, start_time, bulk_size)
-                                bulk_documents = []  # Clear the list
-                    
-                    # Record batch processing time
-                    batch_time = time.time() - page_start
-                    timings["page_processing"] += batch_time
-                    #logger.info(f"Processed batch of {len(batch)} pages in {batch_time:.2f}s")
-
-            # Index any remaining documents
-            if bulk_documents:
-                doc_count = submit_bulk_documents(bulk_documents, timings, doc_count, start_time, bulk_size)
 
     except FileNotFoundError:
         logger.error(f"Dump file not found: {file_path}")
@@ -404,7 +351,6 @@ def process_dump(file_path):
     logger.info(f"- Total processing time: {total_time:.2f}s")
     logger.info(f"- File opening: {timings['file_opening']:.2f}s ({timings['file_opening']/total_time*100:.1f}%)")
     logger.info(f"- Page processing: {timings['page_processing']:.2f}s ({timings['page_processing']/total_time*100:.1f}%)")
-    logger.info(f"- Bulk submission: {timings['bulk_submission']:.2f}s ({timings['bulk_submission']/total_time*100:.1f}%)")
     logger.info(f"- Final shutdown: {shutdown_time:.2f}s ({shutdown_time/total_time*100:.1f}%)")
     logger.info(f"- Avg time per document: {total_time/doc_count if doc_count else 0:.6f}s")
     
