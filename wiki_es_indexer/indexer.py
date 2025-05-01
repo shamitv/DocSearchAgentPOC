@@ -1,8 +1,5 @@
-import bz2
 import traceback
-import logging
-import mwxml
-import mwparserfromhell
+import os
 from datetime import datetime, timezone
 import time
 import sys
@@ -10,12 +7,14 @@ import cProfile
 import pstats
 import io
 from functools import wraps
-import os
+import concurrent.futures
+from itertools import islice
 
+import mwparserfromhell
 from indexed_bzip2 import IndexedBzip2File
+import mwxml
 
-# Import the new handler
-from .es_handler import ElasticsearchHandler
+from wiki_es_indexer.es_handler import ElasticsearchHandler
 
 # Assuming utils.py is in the parent directory relative to this package
 try:
@@ -286,13 +285,11 @@ def process_dump(file_path):
         with IndexedBzip2File(file_path, parallelization = 4) as file:
             dump = mwxml.Dump.from_file(file)
             timings["file_opening"] = time.time() - file_open_start
-            import concurrent.futures
-            from itertools import islice
-            
+
             logger.info(f"File opening completed in {timings['file_opening']:.2f}s")
-            
+
             # Process pages in parallel with a maximum of N workers
-            num_workers = min(20, os.cpu_count() or 1)  # Use all available cores or a max of 20
+            num_workers = min(20, os.cpu_count()*2 or 1)  # Use all available cores or a max of 20
             
             with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
                 # spin up all workers up front
@@ -301,7 +298,7 @@ def process_dump(file_path):
 
 
                 # Process the dump in batches to avoid memory issues
-                batch_size = 100  # Process pages in batches
+                batch_size = 200  # Process pages in batches
                 page_count = 0
                 
                 while True:
