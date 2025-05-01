@@ -168,9 +168,12 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         #try to get the dump file path from environment variable via utils
         dump_path = EnvLoader.get_dump_file_path()
-        print(f"Usage: python {sys.argv[0]} <dump_file_path>")
-        sys.exit(1)
-    dump_path = sys.argv[1]
+        if not dump_path:
+            logging.error("Dump file path not provided. Please specify the dump file path as a command line argument or set it in the environment.")
+            print(f"Usage: python {sys.argv[0]} <dump_file_path>")
+            sys.exit(1)
+    else:
+        dump_path = sys.argv[1]
     logging.info("Starting Wikipedia dump processing...")
     process_dump(dump_path)
     logging.info("Processing completed.")
