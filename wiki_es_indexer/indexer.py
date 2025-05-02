@@ -282,7 +282,7 @@ def process_dump(file_path):
     try:
         file_open_start = time.time()
         #with bz2.open(file_path, "rb") as file:
-        with IndexedBzip2File(file_path, parallelization = 4) as file:
+        with IndexedBzip2File(file_path, parallelization = 12) as file:
             dump = mwxml.Dump.from_file(file)
             timings["file_opening"] = time.time() - file_open_start
 
@@ -298,7 +298,7 @@ def process_dump(file_path):
 
 
                 # Process the dump in batches to avoid memory issues
-                batch_size = 200  # Process pages in batches
+                batch_size = 20  # Process pages in batches
                 page_count = 0
                 
                 while True:
