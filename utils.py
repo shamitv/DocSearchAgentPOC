@@ -45,14 +45,15 @@ class EnvLoader:
         logging.info(f"ES_SEARCH_INDEX: {es_search_index}")
         logging.info(f"DUMP_FILE_PATH: {dump_file_path}") # Log dump file path
 
-        if not es_host or not es_port or not es_dump_index:
-            # Define these variables here only if needed for the error message
+        # Ensure required environment variables are set (ES_DUMP_INDEX is optional for indexing)
+        if not es_host or not es_port:
             current_dir = os.getcwd()
             env_file_exists = os.path.exists(".env")
             env_file_status = "found" if env_file_exists else "not found"
-            raise EnvironmentError(f"Required environment variables ES_HOST, ES_PORT, or ES_DUMP_INDEX are not set.\\\\n"
-                                   f"Current directory: {current_dir}\\\\n"
-                                   f".env file status: {env_file_status}. Exiting.")
+            raise EnvironmentError(
+                f"Required environment variables ES_HOST or ES_PORT are not set.\\n"
+                f"Current directory: {current_dir}\\n"
+                f".env file status: {env_file_status}. Exiting.")
 
         # Cache the loaded values in the dictionary
         EnvLoader._env_vars = {

@@ -7,7 +7,7 @@ import argparse
 
 
 # Import necessary components from the new package
-from wiki_es_indexer.indexer import process_dump, logger # Import logger for script-level messages
+from wiki_es_indexer.indexer import process_dump, process_dump_stream, WikipediaArticleParser, logger # Import streaming processor and parser
 from utils import EnvLoader # Keep EnvLoader for getting dump path
 
 # Configure logging for this script specifically (optional, if different from package)
@@ -41,7 +41,7 @@ if __name__ == "__main__":
             profiler = cProfile.Profile()
             profiler.enable()
             
-            total_docs = process_dump(dump_path)
+            total_docs = process_dump_stream(dump_path)
             
             profiler.disable()
             s = io.StringIO()
@@ -55,9 +55,24 @@ if __name__ == "__main__":
             logger.info("You can analyze this file with tools like snakeviz (pip install snakeviz)")
             logger.info(f"Run: snakeviz {args.profile_output}")
         else:
-            total_docs = process_dump(dump_path)
+            total_docs = process_dump_stream(dump_path)
             
         logger.info(f"Processing completed. Total documents processed: {total_docs}")
     except Exception as e:
         logger.critical(f"An unhandled error occurred during processing: {e}", exc_info=True)
         sys.exit(1)
+
+"""
+# Backward compatibility helpers for unit tests
+"""
+def extract_plain_text(raw_text):
+    """
+    Helper to extract plain text from wikitext for unit tests.
+    """
+    return WikipediaArticleParser().parse_article_text(raw_text)
+
+def _process_templates(wikicode):
+    """
+    Exposes internal template processing for unit tests.
+    """
+    return WikipediaArticleParser()._process_templates(wikicode)

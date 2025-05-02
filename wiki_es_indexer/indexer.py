@@ -9,6 +9,7 @@ import io
 from functools import wraps
 import concurrent.futures
 from itertools import islice
+import xml.etree.ElementTree as ET  # For parsing XML strings
 
 import mwparserfromhell
 from indexed_bzip2 import IndexedBzip2File
@@ -103,10 +104,12 @@ class WikipediaArticleParser:
 
                 name = str(param.name).strip()
                 value_str = str(value_wikicode).strip()
-                value_str = value_str.replace('<br>', '\\n').replace('<br/>', '\\n').replace('<br />', '\\n')
+                # Convert HTML line breaks to actual newlines
+                value_str = value_str.replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
                 params.append(f"{name}: {value_str}")
 
-            replacement = "\\n".join(params)
+            # Join parameters using actual newline character
+            replacement = "\n".join(params)
             try:
                 wikicode.replace(template, replacement)
             except ValueError:
@@ -260,6 +263,38 @@ def noop_function():
     """Empty function for worker initialization in ProcessPoolExecutor."""
     return None
 
+# Helper to parse a <page> XML string and index via existing logic
+def process_page_str(page_xml, parser):
+    """
+    Parse a single <page> XML string and index it using process_page_for_mp.
+    """
+    try:
+        root = ET.fromstring(page_xml)
+        # Skip redirects and non-article namespaces
+        if root.find('redirect') is not None:
+            return False
+        ns = root.find('ns')
+        if ns is not None and int(ns.text or 0) > 0:
+            return False
+        # Extract fields
+        page_id = int(root.find('id').text)
+        title = root.find('title').text or ''
+        rev = root.find('revision')
+        if rev is None or rev.find('text') is None:
+            return False
+        raw_text = rev.find('text').text or ''
+        page_data = {
+            'page_id': page_id,
+            'title': title,
+            'raw_text': raw_text,
+            'revision_id': int(rev.find('id').text) if rev.find('id') is not None else None,
+            'timestamp': rev.find('timestamp').text if rev.find('timestamp') is not None else None
+        }
+        return process_page_for_mp(page_data, parser)
+    except Exception as e:
+        logger.error(f"XML parse error during process_page_str: {e}")
+        return False
+
 # --- Core Indexing Functions ---
 
 @profile(output_file="indexer_profile.prof", lines_to_display=30)
@@ -352,3 +387,64 @@ def process_dump(file_path):
     logger.info(f"- Avg time per document: {total_time/doc_count if doc_count else 0:.6f}s")
     
     return doc_count
+
+# Alternative stream-based dump processor: line-by-line collection of <page> elements
+@profile(output_file="indexer_profile.prof", lines_to_display=30)
+def process_dump_stream(file_path):
+    """
+    Stream process a Wikipedia XML dump: collect each <page>...</page> block and send to a thread pool.
+    """
+    parser = WikipediaArticleParser()
+    num_workers = min(int(MAX_WORKERS), os.cpu_count() * 2 or 1)
+    futures = []
+    try:
+        with IndexedBzip2File(file_path, parallelization=12) as bz2_file:
+            text_file = io.TextIOWrapper(bz2_file, encoding='utf-8')
+            with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+                buffer = []
+                collecting = False
+                for line in text_file:
+                    if '<page>' in line:
+                        collecting = True
+                        buffer = [line]
+                    elif '</page>' in line and collecting:
+                        buffer.append(line)
+                        page_xml = ''.join(buffer)
+                        futures.append(executor.submit(process_page_str, page_xml, parser))
+                        collecting = False
+                    elif collecting:
+                        buffer.append(line)
+                # Wait for all tasks
+                for fut in concurrent.futures.as_completed(futures):
+                    _ = fut.result()
+        # Ensure remaining tasks flushed and shutdown handler
+        es_handler.shutdown(wait=True)
+        return len(futures)
+    except FileNotFoundError:
+        logger.error(f"Dump file not found: {file_path}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Streaming processing failed: {e}\n{traceback.format_exc()}")
+        sys.exit(1)
+
+if __name__ == '__main__':
+    # CLI entry: streaming is default; use --batch for batch+multiprocess
+    import sys
+    args = sys.argv[1:]
+    use_stream = True
+    # switch to batch mode if requested
+    if args and args[0] == '--batch':
+        use_stream = False
+        args = args[1:]
+    # determine dump file path: CLI arg or environment
+    from utils import EnvLoader
+    if args:
+        file_path = args[0]
+    else:
+        file_path = EnvLoader.get_dump_file_path()
+    # execute
+    if use_stream:
+        count = process_dump_stream(file_path)
+    else:
+        count = process_dump(file_path)
+    logger.info(f"Indexed {count} pages from {file_path}")

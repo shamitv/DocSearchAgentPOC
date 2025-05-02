@@ -1,3 +1,8 @@
+import os
+import sys
+# Ensure project root is on path to import modules
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
 import pytest
 import mwparserfromhell
 from index_wikipedia import extract_plain_text, _process_templates
