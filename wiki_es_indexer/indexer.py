@@ -10,12 +10,14 @@ from functools import wraps
 import concurrent.futures
 from itertools import islice
 import xml.etree.ElementTree as ET  # For parsing XML strings
+import threading
 
 import mwparserfromhell
 from indexed_bzip2 import IndexedBzip2File
 import mwxml
 
 from wiki_es_indexer.es_handler import ElasticsearchHandler
+from .bounded_process_pool_executor import BoundedProcessPoolExecutor
 
 # Assuming utils.py is in the parent directory relative to this package
 try:
@@ -396,11 +398,12 @@ def process_dump_stream(file_path):
     """
     parser = WikipediaArticleParser()
     num_workers = min(int(MAX_WORKERS), os.cpu_count() * 2 or 1)
+    max_queue_size = num_workers * 2
     futures = []
     try:
         with IndexedBzip2File(file_path, parallelization=12) as bz2_file:
             text_file = io.TextIOWrapper(bz2_file, encoding='utf-8')
-            with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+            with BoundedProcessPoolExecutor(max_workers=num_workers, max_queue_size=max_queue_size) as executor:
                 buffer = []
                 collecting = False
                 for line in text_file:

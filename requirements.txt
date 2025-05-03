@@ -10,3 +10,10 @@ flask
 flask-cors
 pytest
 indexed_bzip2
+indexed_bzip2
+mwparserfromhell
+fastapi
+pydantic
+mwxml
+requests
+beautifulsoup4
