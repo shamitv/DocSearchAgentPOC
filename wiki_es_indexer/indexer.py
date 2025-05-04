@@ -299,7 +299,7 @@ def process_page_str(page_xml, parser):
 
 # --- Core Indexing Functions ---
 
-@profile(output_file="indexer_profile.prof", lines_to_display=30)
+#@profile(output_file="indexer_profile.prof", lines_to_display=30)
 def process_dump(file_path):
     """Parse and process the Wikipedia dump sequentially using ElasticsearchHandler."""
     doc_count = 0
@@ -391,7 +391,7 @@ def process_dump(file_path):
     return doc_count
 
 # Alternative stream-based dump processor: line-by-line collection of <page> elements
-@profile(output_file="indexer_profile.prof", lines_to_display=30)
+#@profile(output_file="indexer_profile.prof", lines_to_display=30)
 def process_dump_stream(file_path):
     """
     Stream process a Wikipedia XML dump: collect each <page>...</page> block and send to a thread pool.
