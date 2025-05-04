@@ -109,21 +109,33 @@ Example Output: ["query 1", "query 2", "query 3"]
 """
         
         # Call the LLM to generate queries
-        logger.info("Calling LLM to generate search queries")
+        logger.info(f"Calling LLM to generate search queries with prompt # {prompt}")
         llm_call_start_time = time.time()
         try:
-            # Use the dedicated query generation client
-            response = await query_model_client.chat_completion(
-                messages=[UserMessage(content=prompt)],
-                temperature=0.5, # Encourage some creativity but stay focused
-                max_tokens=500, # Ample space for queries
-                response_format={"type": "json_object"} # Request JSON output
+            response = await query_model_client.create(
+                messages=[UserMessage(content=prompt,source='user')],
+                json_output=False,
+                extra_create_args={
+                    "temperature": 0.5, # Moderate temperature for creativity
+                    "max_tokens": 1500, # # Ample space for queries
+                }
             )
-            log_llm_metrics("generate_search_queries", query_model_client.model, time.time() - llm_call_start_time, response.usage)
+            # Safely extract model ID from model_info (dict or object)
+            _mi = query_model_client.model_info
+            _model_id = _mi['id'] if isinstance(_mi, dict) else getattr(_mi, 'id', str(_mi))
+            # Log metrics with model ID
+            log_llm_metrics(response, llm_call_start_time,
+                            model_name=_model_id,
+                            is_query=True,
+                            run_id=run_id,
+                            iteration=iteration,
+                            raw_prompt=prompt)
             logger.info(f"LLM response for query generation received: {response.content}")
             
         except Exception as e:
             logger.error(f"LLM call failed during query generation: {str(e)}")
+            #print stack trace
+            traceback.print_exc()
             # Fallback or re-raise depending on desired robustness
             raise
         
@@ -132,6 +144,10 @@ Example Output: ["query 1", "query 2", "query 3"]
         queries = []
         if isinstance(generated_content, str):
             try:
+                # Remove any chain of thought between <think> and </think> tags
+                generated_content = re.sub(r"<think>.*?</think>", "", generated_content, flags=re.DOTALL)
+                # Remove any leading/trailing whitespace
+                generated_content = generated_content.strip()
                 # Attempt to parse the string as JSON
                 parsed_json = json.loads(generated_content)
                 # Check if it's a list of strings
@@ -153,7 +169,6 @@ Example Output: ["query 1", "query 2", "query 3"]
                 logger.error(f"Failed to parse LLM response as JSON for queries: {generated_content}")
                 # Attempt to extract list-like structures if JSON parsing fails (less reliable)
                 # Example: Find content within square brackets
-                import re
                 match = re.search(r'\[\s*("[^"\\]*(?:\\.[^"\\]*)*"\s*,?\s*)+\]', generated_content)
                 if match:
                     try:
@@ -239,21 +254,46 @@ For each result, respond in JSON with these keys:
 - summary (string): A concise summary of the relevant information in this result.
 - relevant_text (string): The exact text span from the result that is most relevant to the question.
 - reasoning (string): Explain your reasoning for the above fields.
+
+/no_think
 """
         start_time = time.time()
         try:
-            # Use the dedicated analysis client
-            response = await analysis_model_client.chat_completion(
-                messages=[UserMessage(content=prompt)],
-                temperature=0.2, # Lower temperature for factual analysis
-                max_tokens=1000, # Max tokens for analyzing one result
-                response_format={"type": "json_object"} # Request JSON output
+            response = await analysis_model_client.create(
+                messages=[UserMessage(content=prompt,source="user")],
+                 extra_create_args={
+                    "temperature":0.5,  # Moderate temperature for creativity
+                    "max_tokens": max_tokens,  # Limit tokens for analysis
+                }
+
             )
-            log_llm_metrics("analyze_search_results_individual", analysis_model_client.model, time.time() - start_time, response.usage)
-            analysis = json.loads(response.content)
-            individual_analyses.append({"result_index": idx, "analysis": analysis})
+            # ...existing code...
+            individual_analyses.append({"result_index": idx, "analysis": analysis, "result": result})
+            # ...existing code...
+            # Determine safe model_name for analysis
+            _mi = analysis_model_client.model_info
+            _model_id = _mi['id'] if isinstance(_mi, dict) else getattr(_mi, 'id', str(_mi))
+            # Log metrics with model ID
+            log_llm_metrics(response, start_time,
+                            model_name=_model_id,
+                            is_query=False,
+                            run_id=run_id,
+                            iteration=iteration,
+                            result_index=idx,
+                            raw_prompt=prompt)
+            generated_content = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL)
+            generated_content = generated_content.strip()
+            analysis = json.loads(generated_content)
+            individual_analyses.append({"result_index": idx, "analysis": analysis, "result": result})
             logger.info(f"Analysis for result {idx}: {analysis}")
             
+            # ...existing code...
+            individual_analyses.append({
+                "result_index": idx,
+                "analysis": {"error": f"LLM analysis failed: {str(e)}"},
+                "result": result
+            })
+            # ...existing code...
             # Check if this result provides a high-confidence answer
             if analysis.get("answer_found") and analysis.get("confidence", 0.0) >= 0.8:
                  answer_found = True
@@ -264,11 +304,14 @@ For each result, respond in JSON with these keys:
 
         except Exception as e:
             logger.error(f"LLM call failed during analysis of result {idx}: {str(e)}")
-            # Append a failure record
+            # ...existing code...
             individual_analyses.append({
                 "result_index": idx,
-                "analysis": {"error": f"LLM analysis failed: {str(e)}"}
+                "analysis": {"error": f"LLM analysis failed: {str(e)}"},
+                "result": result
             })
+            # ...existing code...
+    # ...existing code...
     # Aggregate individual analyses: pick highest-confidence positive
     positive = [a for a in individual_analyses if a["analysis"].get("answer_found")]
     if positive:
@@ -471,6 +514,7 @@ async def run_agent_with_search_results(task: str, max_iterations: int = 1):
                         "results": results.get("results", [])
                     })
 
+        # ...existing code...
         # Use new attributes from analyze_search_results for the agent's prompt
         final_answer = search_results.get("final_answer")
         useful_results = []
@@ -489,6 +533,7 @@ async def run_agent_with_search_results(task: str, max_iterations: int = 1):
                         "answer": analysis.get("answer")
                     })
         logger.info(f"Number of useful results considered for final analysis: {len(useful_results)}")
+        # ...existing code...
         # Create a new prompt with the filtered, useful results and their attributes
         enhanced_task = f"""
 Question: {task}
@@ -508,8 +553,22 @@ Each result includes:
 
 Please analyze these search results and provide a comprehensive answer to the question, citing the most relevant results and explaining your reasoning.
 """
+        # ...existing code...
+        # Record start time before invoking the agent, then log metrics correctly
+        start_time_agent = time.time()
         agent_response = await advanced_knowledge_agent.run(task=enhanced_task)
-        log_llm_metrics(agent_response, time.time(), model_name=getattr(agent_model_client, 'model_name', getattr(agent_model_client, 'model', 'Unknown')), is_query=False, run_id=run_id, iteration=None, raw_prompt=enhanced_task)
+        # ...existing code...
+        # Determine safe model_name for agent
+        _mi = agent_model_client.model_info
+        _model_id = _mi['id'] if isinstance(_mi, dict) else getattr(_mi, 'id', str(_mi))
+        # ...existing code...
+        # Log agent call metrics with agent model ID
+        log_llm_metrics(agent_response, start_time_agent,
+                        model_name=_model_id,
+                        is_query=False,
+                        run_id=run_id,
+                        iteration=None,
+                        raw_prompt=enhanced_task)
         logger.info("Agent task completed successfully")
         return search_results, agent_response
     except Exception as e:
@@ -537,7 +596,9 @@ def dedupe_search_results(results, key_fields=None):
     return unique_results
 
 async def main() -> None:
+    # ...existing code...
     # You can replace the task with any question you want to ask
+    # ...existing code...
     #task = "How much reciprocal tariffs were put on China by Trump?"
     task = "Which schools are present in Trsat"
     search_results, agent_response = await run_agent_with_search_results(task)

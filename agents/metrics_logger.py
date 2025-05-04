@@ -71,6 +71,11 @@ def log_llm_metrics(response, start_time, model_name="Unknown", is_query=True, r
     """
     elapsed_time = time.time() - start_time
     operation = "Query generation" if is_query else "Result analysis"
+    # Ensure model_name is a string to avoid sqlite binding errors
+    try:
+        model_name = model_name if isinstance(model_name, str) else str(model_name)
+    except Exception:
+        model_name = "Unknown"
     logger.info(f"{operation} execution time: {elapsed_time:.2f} seconds")
     prompt_tokens = None
     completion_tokens = None
