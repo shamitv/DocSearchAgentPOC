@@ -135,3 +135,10 @@ for filename, dump_date in dump_files:
         logger.error(f"Failed to process {filename}: {e}")
 
 logger.info("Done.")
+
+def main():
+    # Move all code from here to the end of the file into this function
+    logger.info("Done.")
+
+if __name__ == "__main__":
+    main()
