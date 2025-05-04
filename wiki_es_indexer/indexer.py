@@ -301,94 +301,9 @@ def process_page_str(page_xml, parser):
 
 #@profile(output_file="indexer_profile.prof", lines_to_display=30)
 def process_dump(file_path):
-    """Parse and process the Wikipedia dump sequentially using ElasticsearchHandler."""
-    doc_count = 0
-    start_time = time.time()
-    # Make sure the parser is simple enough to be pickled for multiprocessing
-    # If there are issues with pickling, you may need to modify the parser class
-    parser = WikipediaArticleParser() # Instantiate the parser
-    
-    # Timing statistics
-    timings = {
-        "file_opening": 0,
-        "page_processing": 0,
-        "total_processing": 0
-    }
-    
-    logger.info(f"Opening dump file: {file_path}")
-    try:
-        file_open_start = time.time()
-        #with bz2.open(file_path, "rb") as file:
-        with IndexedBzip2File(file_path, parallelization = 12) as file:
-            dump = mwxml.Dump.from_file(file)
-            timings["file_opening"] = time.time() - file_open_start
+    """"""
+    return process_dump_stream(file_path)
 
-            logger.info(f"File opening completed in {timings['file_opening']:.2f}s")
-
-            # Process pages in parallel with a maximum of N workers
-            num_workers = min(20, os.cpu_count()*2 or 1)  # Use all available cores or a max of 20
-            
-            with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
-                # spin up all workers up front
-                futures = [executor.submit(noop_function) for _ in range(num_workers)]
-                for f in futures: f.result()  # wait for them to start (and immediately do nothing)
-
-
-                # Process the dump in batches to avoid memory issues
-                batch_size = 20  # Process pages in batches
-                page_count = 0
-                
-                while True:
-                    # Get the next batch of pages
-                    batch = list(islice(dump, batch_size))
-                    if not batch:
-                        break
-                        
-                    # If you're submitting tasks to process pages, use the named function:
-                    # futures = [executor.submit(process_page, page) for page in batch]
-                    
-                    # Extract page data first
-                    page_data_list = []
-                    for page in batch:
-                        page_data = extract_page(page)
-                        if page_data:
-                            page_data_list.append(page_data)
-                    
-                    # Submit batch for parallel processing
-                    page_start = time.time()
-                    future_to_page = {executor.submit(process_page_for_mp, page_data, parser): page_data for page_data in page_data_list}
-                    
-                    # Process completed futures as they finish
-                    for future in concurrent.futures.as_completed(future_to_page):
-                        document = future.result()
-                        page_count += 1
-                        
-
-    except FileNotFoundError:
-        logger.error(f"Dump file not found: {file_path}")
-        sys.exit(1)
-    except Exception as e:
-        logger.error(f"Failed to process dump file {file_path}: {e}\n{traceback.format_exc()}")
-        sys.exit(1)
-
-    logger.info("Waiting for all indexing tasks to complete...")
-    shutdown_start = time.time()
-    es_handler.shutdown(wait=True)
-    shutdown_time = time.time() - shutdown_start
-    
-    # Final timing statistics
-    total_time = time.time() - start_time
-    timings["total_processing"] = total_time
-    
-    logger.info(f"All tasks completed. Total documents processed: {doc_count}.")
-    logger.info(f"Performance summary:")
-    logger.info(f"- Total processing time: {total_time:.2f}s")
-    logger.info(f"- File opening: {timings['file_opening']:.2f}s ({timings['file_opening']/total_time*100:.1f}%)")
-    logger.info(f"- Page processing: {timings['page_processing']:.2f}s ({timings['page_processing']/total_time*100:.1f}%)")
-    logger.info(f"- Final shutdown: {shutdown_time:.2f}s ({shutdown_time/total_time*100:.1f}%)")
-    logger.info(f"- Avg time per document: {total_time/doc_count if doc_count else 0:.6f}s")
-    
-    return doc_count
 
 # Alternative stream-based dump processor: line-by-line collection of <page> elements
 #@profile(output_file="indexer_profile.prof", lines_to_display=30)
