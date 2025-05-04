@@ -15,14 +15,13 @@ from contextlib import redirect_stdout
 import importlib
 import sqlite3
 
-# Import the search_knowledge_base function directly
-from utils import search_knowledge_base
+# Import LoggerConfig from utils
+from utils import search_knowledge_base, LoggerConfig
 import asyncio  # Added to run async generate_search_queries
 from agents.advanced_knowledge_agent import generate_search_queries, answer_from_knowledge_base, run_agent_with_search_results  # Import query generator and main agent function
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Configure logging using LoggerConfig from utils
+logger = LoggerConfig.configure_logging()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -372,4 +371,5 @@ def index():
 # Only for development/testing
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))  # Changed default from 5000 to 5001
+    logger.info(f"Starting Flask server on port {port}") # Add logging
     app.run(host='0.0.0.0', port=port, debug=True)

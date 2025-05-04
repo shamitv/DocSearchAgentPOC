@@ -13,11 +13,17 @@ from utils import EnvLoader, LoggerConfig, ElasticsearchClient
 logger = LoggerConfig.configure_logging()
 logger.info("Initializing Knowledge Agent")
 
-# Load environment variables using EnvLoader
+# Load environment variables
 try:
-    es_host, es_port, es_index = EnvLoader.load_env()
+    env_vars = EnvLoader.load_env()
+    es_host = env_vars.get("ES_HOST")
+    es_port = env_vars.get("ES_PORT")
+    es_index = env_vars.get("ES_SEARCH_INDEX") # Assuming es_index corresponds to ES_SEARCH_INDEX
+    if not all([es_host, es_port, es_index]):
+        raise EnvironmentError("Required Elasticsearch environment variables not set.")
 except EnvironmentError as e:
-    logger.error(f"Environment setup failed: {str(e)}")
+    logger.error(f"Failed to load environment variables: {e}")
+    # Handle the error appropriately, maybe exit or raise
     raise
 
 logger.info(f"Connecting to Elasticsearch at {es_host}:{es_port}, index: {es_index}")

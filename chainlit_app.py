@@ -5,6 +5,10 @@ import logging
 import chainlit as cl
 from typing import Dict, Any, List
 from dotenv import load_dotenv
+
+# Import LoggerConfig from utils
+from utils import LoggerConfig
+
 from agents.advanced_knowledge_agent import (
     search_knowledge_base,
     generate_search_queries,
@@ -14,16 +18,8 @@ from agents.advanced_knowledge_agent import (
     model_client
 )
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("chainlit_app.log"),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger("chainlit_app")
+# Configure logging using LoggerConfig from utils
+logger = LoggerConfig.configure_logging()
 
 # Load environment variables
 load_dotenv()

@@ -10,8 +10,11 @@ from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 
 class EnvLoader:
+    _loaded = False
+    _env_vars = {}  # Cache environment variables in a dictionary
+
     @staticmethod
-    def load_env():
+    def _find_env():
         load_dotenv()
         env_file_path = os.path.abspath(".env")
         logging.info(f"Absolute path of .env file: {env_file_path}")
@@ -22,22 +25,63 @@ class EnvLoader:
         logging.info(f"Current directory: {current_dir}")
         logging.info(f".env file status: {env_file_status}")
 
+    @staticmethod
+    def load_env():
+        if EnvLoader._loaded:
+            # Return the cached dictionary
+            return EnvLoader._env_vars
+
+        EnvLoader._find_env() # Call the new method
+
         es_host = os.getenv("ES_HOST")
         es_port = os.getenv("ES_PORT")
         es_dump_index = os.getenv("ES_DUMP_INDEX")
         es_search_index = os.getenv("ES_SEARCH_INDEX", "wikipedia")  # Default to "wikipedia" if not set
-        
+        dump_file_path = os.getenv("DUMP_FILE_PATH") # Load dump file path
+
         logging.info(f"ES_HOST: {es_host}")
         logging.info(f"ES_PORT: {es_port}")
         logging.info(f"ES_DUMP_INDEX: {es_dump_index}")
         logging.info(f"ES_SEARCH_INDEX: {es_search_index}")
+        logging.info(f"DUMP_FILE_PATH: {dump_file_path}") # Log dump file path
+
+        # Ensure required environment variables are set (ES_DUMP_INDEX is optional for indexing)
+        if not es_host or not es_port:
+            current_dir = os.getcwd()
+            env_file_exists = os.path.exists(".env")
+            env_file_status = "found" if env_file_exists else "not found"
+            raise EnvironmentError(
+                f"Required environment variables ES_HOST or ES_PORT are not set.\\n"
+                f"Current directory: {current_dir}\\n"
+                f".env file status: {env_file_status}. Exiting.")
+
+        # Cache the loaded values in the dictionary
+        EnvLoader._env_vars = {
+            "ES_HOST": es_host,
+            "ES_PORT": es_port,
+            "ES_DUMP_INDEX": es_dump_index,
+            "ES_SEARCH_INDEX": es_search_index,
+            "DUMP_FILE_PATH": dump_file_path
+        }
+        EnvLoader._loaded = True
+
+        # Return the dictionary
+        return EnvLoader._env_vars
+
+    @classmethod
+    def get_dump_file_path(cls):
+        # Load env vars (returns cached dict if already loaded)
+        env_vars = cls.load_env()
         
-        if not es_host or not es_port or not es_dump_index:
-            raise EnvironmentError(f"Required environment variables ES_HOST, ES_PORT, or ES_DUMP_INDEX are not set.\n"
-                                   f"Current directory: {current_dir}\n"
-                                   f".env file status: {env_file_status}. Exiting.")
+        dump_file_path = env_vars.get("DUMP_FILE_PATH")
         
-        return es_host, es_port, es_dump_index, es_search_index
+        if not dump_file_path:
+            # Raise error if DUMP_FILE_PATH wasn't set/found during load_env
+            raise EnvironmentError("DUMP_FILE_PATH environment variable is not set or loaded.")
+        
+        # Return the value from the dictionary
+        return dump_file_path
+
 
 class LoggerConfig:
     @staticmethod
@@ -90,13 +134,18 @@ def search_knowledge_base(query, max_results=5):
     Returns:
         dict: JSON serializable dictionary containing search results
     """
-    logger = logging.getLogger("wiki_search")
+    logger = logging.getLogger("wiki_search") # Assuming logger is configured elsewhere or get it appropriately
     logger.info(f"Searching knowledge base for: '{query}' (max results: {max_results})")
     start_time = time.time()
     
     try:
-        # Load environment variables
-        es_host, es_port, es_dump_index, es_search_index = EnvLoader.load_env()
+        # Load environment variables as a dictionary
+        env_vars = EnvLoader.load_env()
+        
+        # Get values from the dictionary
+        es_host = env_vars.get("ES_HOST")
+        es_port = env_vars.get("ES_PORT")
+        es_search_index = env_vars.get("ES_SEARCH_INDEX")
         
         # Get Elasticsearch client
         es_client = ElasticsearchClient.get_client(es_host, es_port)
