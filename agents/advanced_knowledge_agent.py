@@ -267,9 +267,6 @@ For each result, respond in JSON with these keys:
                 }
 
             )
-            # ...existing code...
-            individual_analyses.append({"result_index": idx, "analysis": analysis, "result": result})
-            # ...existing code...
             # Determine safe model_name for analysis
             _mi = analysis_model_client.model_info
             _model_id = _mi['id'] if isinstance(_mi, dict) else getattr(_mi, 'id', str(_mi))
@@ -287,13 +284,6 @@ For each result, respond in JSON with these keys:
             individual_analyses.append({"result_index": idx, "analysis": analysis, "result": result})
             logger.info(f"Analysis for result {idx}: {analysis}")
             
-            # ...existing code...
-            individual_analyses.append({
-                "result_index": idx,
-                "analysis": {"error": f"LLM analysis failed: {str(e)}"},
-                "result": result
-            })
-            # ...existing code...
             # Check if this result provides a high-confidence answer
             if analysis.get("answer_found") and analysis.get("confidence", 0.0) >= 0.8:
                  answer_found = True
@@ -304,14 +294,11 @@ For each result, respond in JSON with these keys:
 
         except Exception as e:
             logger.error(f"LLM call failed during analysis of result {idx}: {str(e)}")
-            # ...existing code...
             individual_analyses.append({
                 "result_index": idx,
                 "analysis": {"error": f"LLM analysis failed: {str(e)}"},
                 "result": result
             })
-            # ...existing code...
-    # ...existing code...
     # Aggregate individual analyses: pick highest-confidence positive
     positive = [a for a in individual_analyses if a["analysis"].get("answer_found")]
     if positive:
