@@ -21,6 +21,10 @@ class TestSearchKnowledgeBaseIntegration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up the test class by initializing Elasticsearch connection and creating test data."""
+        # Save original dump index and set test index
+        cls.original_es_index = os.environ.get("ES_DUMP_INDEX")
+        # Use the search index for testing deletion/cleanup
+        cls.test_index = None
         # Configure logging for tests
         logging.basicConfig(
             level=logging.INFO,
@@ -35,6 +39,8 @@ class TestSearchKnowledgeBaseIntegration(unittest.TestCase):
             cls.es_host = env_vars.get("ES_HOST")
             cls.es_port = env_vars.get("ES_PORT")
             cls.es_index = env_vars.get("ES_SEARCH_INDEX") # Assuming es_index corresponds to ES_SEARCH_INDEX
+            # Set test_index to the search index
+            cls.test_index = cls.es_index
             
             if not all([cls.es_host, cls.es_port, cls.es_index]):
                 raise EnvironmentError("Required Elasticsearch environment variables are not set.")
@@ -61,15 +67,16 @@ class TestSearchKnowledgeBaseIntegration(unittest.TestCase):
         """Clean up after tests by deleting the test index."""
         cls.logger.info("Cleaning up after tests")
         
-        # Delete the test index
-        try:
-            cls.es_client.indices.delete(index=cls.test_index)
-            cls.logger.info(f"Test index {cls.test_index} deleted")
-        except Exception as e:
-            cls.logger.error(f"Failed to delete test index: {str(e)}")
+        # Delete the test index if set
+        if getattr(cls, 'test_index', None):
+            try:
+                cls.es_client.indices.delete(index=cls.test_index)
+                cls.logger.info(f"Test index {cls.test_index} deleted")
+            except Exception as e:
+                cls.logger.error(f"Failed to delete test index: {str(e)}")
         
-        # Restore original es_index if it existed
-        if cls.original_es_index:
+        # Restore original dump index environment variable if it existed
+        if getattr(cls, 'original_es_index', None):
             os.environ["ES_DUMP_INDEX"] = cls.original_es_index
             cls.logger.info(f"Restored ES_DUMP_INDEX to {cls.original_es_index}")
 
