@@ -16,12 +16,18 @@ from datetime import datetime, timezone
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from utils import EnvLoader, LoggerConfig, ElasticsearchClient, search_knowledge_base as utils_search_knowledge_base, generate_run_id, get_llm_client, get_llm_base_url
+from utils import EnvLoader, LoggerConfig, ElasticsearchClient, generate_run_id, get_llm_client, get_llm_base_url
 from agents.metrics_logger import log_llm_metrics, init_metrics_db
 from agents.db_init import init_main_db
 from agents.db_logging import (
     log_run_start, log_query_generation, log_search_query, log_search_result, log_analysis_prompt, log_analysis_result
 )
+
+# ...existing imports...
+import os
+import json  
+import yaml
+# ...existing imports...
 
 # Setup logging and obtain logger instance
 logger = LoggerConfig.configure_logging()
@@ -48,13 +54,66 @@ except Exception as e:
 DB_PATH = os.getenv('INTERMEDIATE_DB_PATH', 'intermediate_results.db')
 conn, cursor = init_main_db(DB_PATH)
 
+# Load prompt templates
+template_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'prompt_templates.yaml'))
+with open(template_path) as f:
+    prompt_templates = yaml.safe_load(f)
+
 # Define search function that returns structured data for better analysis
 async def search_knowledge_base(query: str, max_results: int = 5) -> str:
     """
-    Wrapper for utils.search_knowledge_base returning JSON string.
+    Search the Elasticsearch knowledge base and return structured JSON string.
     """
-    results = utils_search_knowledge_base(query, max_results)
-    return json.dumps(results)
+    try:
+        # Execute search with size parameter
+        response = es_client.search(
+            index=es_index,
+            body={
+                "query": {
+                    "multi_match": {
+                        "query": query,
+                        "fields": ["text", "title"],
+                        "type": "best_fields",
+                        "operator": "or"
+                    }
+                }
+            },
+            size=max_results
+        )
+        hits_data = response.get("hits", {})
+        total_hits = hits_data.get("total", {}).get("value", 0)
+        hits = hits_data.get("hits", [])
+        # No results found
+        if total_hits == 0 or not hits:
+            return json.dumps({
+                "success": False,
+                "query": query,
+                "message": f"No results found for query: '{query}'"
+            })
+        # Process hits
+        results = []
+        for hit in hits:
+            src = hit.get("_source", {})
+            # Title-case for consistency
+            title_raw = src.get("title", "No title")
+            title = title_raw.title()
+            text = src.get("text", "")
+            # Truncate content to 1000 chars + ellipsis
+            content = text if len(text) <= 1000 else text[:1000] + "..."
+            results.append({"title": title, "content": content})
+        return json.dumps({
+            "success": True,
+            "query": query,
+            "total_hits": total_hits,
+            "results": results
+        })
+    except Exception as e:
+        # Handle exceptions
+        return json.dumps({
+            "success": False,
+            "query": query,
+            "message": f"Error searching knowledge base: {str(e)}"
+        })
 
 # Function to generate multiple search queries
 async def generate_search_queries(question: str, previous_queries: List[str] = None, 
@@ -86,27 +145,17 @@ async def generate_search_queries(question: str, previous_queries: List[str] = N
     try:
         # Construct a prompt for the LLM based on what stage we're in
         if refinement_mode:
-            # Prompt for refinement stage
-            prompt = f"""Given the original question and previous search attempts, generate {num_queries} new, more specific search queries.
-
-Original Question: {question}
-
-Previous Queries Tried:
-{json.dumps(previous_queries, indent=2)}
-
-Summary of Previous Results:
-{json.dumps([res.get('title', 'No Title') for res in search_results], indent=2)}
-
-Generate {num_queries} new queries focusing on aspects potentially missed or needing clarification. Output ONLY a JSON list of strings.
-"""
+            prompt = prompt_templates['refinement_queries'].format(
+                num_queries=num_queries,
+                question=question,
+                previous_queries=json.dumps(previous_queries, indent=2),
+                summary=json.dumps([res.get('title', 'No Title') for res in search_results], indent=2)
+            )
         else:
-            # Prompt for initial query generation
-            prompt = f"""Generate {num_queries} diverse search queries for the following question. Output ONLY a JSON list of strings.
-
-Question: {question}
-
-Example Output: ["query 1", "query 2", "query 3"]
-"""
+            prompt = prompt_templates['generate_initial_queries'].format(
+                num_queries=num_queries,
+                question=question
+            )
         
         # Call the LLM to generate queries
         logger.info(f"Calling LLM to generate search queries with prompt # {prompt}")
@@ -325,8 +374,14 @@ For each result, respond in JSON with these keys:
 
 # Define separate model clients for different tasks
 logger.info("Initializing LLM clients for different tasks")
+# Initialize LLM clients with fallback to 'openai' if LLM_TYPE is unsupported
 try:
-    llm_type = os.getenv("LLM_TYPE", "openai")
+    raw_llm_type = os.getenv("LLM_TYPE", "openai").lower()
+    if raw_llm_type != "openai":
+        logger.warning(f"Unsupported LLM_TYPE '{raw_llm_type}', defaulting to 'openai'.")
+        llm_type = "openai"
+    else:
+        llm_type = raw_llm_type
     # Model for query generation
     query_model_client = get_llm_client(llm_type, "gpt-4o-mini")
     logger.info("Query generation model client initialized")
@@ -338,7 +393,14 @@ try:
     logger.info("Agent model client initialized")
 except Exception as e:
     logger.error(f"Error initializing LLM clients: {str(e)}")
-    raise
+    # Fallback: use OpenAI clients directly
+    from autogen_ext.models.openai import OpenAIChatCompletionClient
+    agent_api_key = os.getenv("OPENAI_API_KEY")
+    query_model_client = analysis_model_client = agent_model_client = OpenAIChatCompletionClient(
+        model="gpt-4o-mini",
+        api_key=agent_api_key,
+    )
+    logger.info("Fallback OpenAI client initialized for all tasks")
 
 # Define the advanced knowledge agent
 logger.info("Creating advanced knowledge agent")
