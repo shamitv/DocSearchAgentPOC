@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 import asyncio
 from utils import EnvLoader, LoggerConfig, ElasticsearchClient
+import json
+import yaml
+from datetime import datetime
 
 # Configure logging and obtain logger instance
 logger = LoggerConfig.configure_logging()
@@ -32,6 +35,11 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize Elasticsearch client: {str(e)}")
     raise
+
+# Load prompt templates from YAML
+template_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'prompt_templates.yaml'))
+with open(template_path) as f:
+    prompt_templates = yaml.safe_load(f)
 
 # Define search function to query Elasticsearch
 async def search_knowledge_base(query: str, max_results: int = 5) -> str:
@@ -108,22 +116,7 @@ knowledge_agent = AssistantAgent(
     name="knowledge_agent",
     model_client=model_client,
     tools=[search_knowledge_base],
-    system_message="""
-You are an intelligent research assistant that helps answer questions using a knowledge base of Wikipedia articles.
-You follow a systematic approach:
-
-1. First, create a set of diverse search queries that might help answer the user's question
-2. For each query, search the knowledge base and analyze the results
-3. If you find an answer, provide it along with supporting evidence from the search results
-4. If you don't find an answer, create new search queries based on previous results
-5. Continue refining your queries until you either find an answer or reach 5 attempts
-
-When providing answers:
-- Cite specific information from the search results
-- Distinguish between facts from the knowledge base and your own reasoning
-- Be honest when you don't know or can't find information
-- Structure your response clearly to show your search strategy and findings
-""",
+    system_message=prompt_templates['system_message'].format(date=datetime.now().strftime('%-d %B %Y')),
     reflect_on_tool_use=True,
     model_client_stream=True,  # Enable streaming tokens from the model client
 )
